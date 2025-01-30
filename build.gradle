@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+    id 'idea'
+}
+
+group 'xyz.duncanruns.ninjalink'
+version '0.0.1'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://www.jetbrains.com/intellij-repository/releases" }
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    implementation 'com.google.code.gson:gson:2.10'
+    implementation 'com.formdev:flatlaf:3.5.1'
+    implementation 'com.jetbrains.intellij.java:java-gui-forms-rt:203.7148.30'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:okhttp-sse:4.12.0'
+}
+
+jar {
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+
+    manifest {
+        // Thanks to answers from this: https://stackoverflow.com/questions/33020069/how-to-get-version-attribute-from-a-gradle-build-to-be-included-in-runtime-swing
+        attributes 'Main-Class': 'xyz.duncanruns.ninjalink.NinjaLinkLaunch',
+                'Multi-Release': true,
+                'Implementation-Version': version
+    }
+
+    from {
+        configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}

@@ -1,6 +1,6 @@
 # NinjaLink
 
-A coop tool to see other player's positions and measured strongholds using Ninjabrain Bot.
+A co-op tool to see other player's positions and measured strongholds using Ninjabrain Bot.
 
 ![The NinjaLink Client Application](NinjaLink.png)
 

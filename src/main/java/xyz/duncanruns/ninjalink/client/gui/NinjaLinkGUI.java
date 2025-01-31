@@ -165,7 +165,7 @@ public class NinjaLinkGUI extends JFrame {
 
         if (requiredHeight > currentHeight || requiredWidth > currentWidth)
             setSize(Math.max(currentWidth, requiredWidth), Math.max(currentHeight, requiredHeight));
-
+        setMinimumSize(new java.awt.Dimension(requiredWidth, requiredHeight));
     }
 
     private static void resizeColumnWidth(JTable table) {

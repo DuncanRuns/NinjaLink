@@ -21,6 +21,7 @@ A co-op tool to see other player's positions and measured strongholds using Ninj
 ### Usage
 
 - You can press `P` with the window selected to 'pin' the window (always on top).
+- You can press the up or down arrow keys to increase/decrease font size.
 - With Ninjabrain Bot open, measure a Stronghold as normal, and you should see it appear on NinjaLink, you will also see
   other player's Strongholds appear on NinjaLink.
 - Press F3+C at any point for other players to see your coordinates and dimension, and to update your distances and

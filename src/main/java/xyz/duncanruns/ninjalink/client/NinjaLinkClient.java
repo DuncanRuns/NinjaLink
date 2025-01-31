@@ -26,6 +26,7 @@ public final class NinjaLinkClient {
     private static NinjabrainBotConnector ninjabrainBot;
     private static boolean closing = false;
     private static NinjaLinkConfig ninjaLinkConfig;
+    private static NinjaLinkGroupData latestData = new NinjaLinkGroupData();
 
     private NinjaLinkClient() {
     }
@@ -41,12 +42,7 @@ public final class NinjaLinkClient {
         if (Arrays.asList(args).stream().skip(2).noneMatch(s -> s.toLowerCase().contains("nogui")))
             SwingUtilities.invokeAndWait(() -> {
                 FlatDarkLaf.setup();
-                Font defaultFont = UIManager.getFont("defaultFont");
-                float newSize = defaultFont.getSize() * 1.5f;
-                UIManager.put("defaultFont", defaultFont.deriveFont(newSize));
-                ninjaLinkGUI = new NinjaLinkGUI(NinjaLinkClient::close, getKeyListener());
-                ninjaLinkGUI.setVisible(true);
-                ninjaLinkGUI.setPinned(ninjaLinkConfig.guiPinned);
+                createGUIWithFontSize(ninjaLinkConfig.fontSize);
             });
 
         AtomicReference<String> toConnectToRef = new AtomicReference<>(ninjaLinkConfig.ip);
@@ -90,7 +86,7 @@ public final class NinjaLinkClient {
 
         ninjaLinkConfig.ip = toConnectTo;
         ninjaLinkConfig.nickname = name;
-        if (!ninjaLinkConfig.trySave()) System.out.println("Failed to save config!");
+        trySaveConfig();
 
         try {
             runClient(ip, port, name);
@@ -107,15 +103,55 @@ public final class NinjaLinkClient {
         return new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyChar() == 'p') {
-                    swapGuiPinned();
+                switch (e.getKeyCode()) {
+                    case 38:
+                        bumpFontSize(true);
+                        break;
+                    case 40:
+                        bumpFontSize(false);
+                        break;
+                    case 80:
+                        swapGuiPinned();
+                        break;
                 }
             }
         };
     }
 
+    private static void bumpFontSize(boolean up) {
+        int currentSize = ninjaLinkConfig.fontSize;
+        int newSize = Math.min(24, Math.max(4, currentSize + (up ? 2 : -2)));
+        if (currentSize == newSize) return;
+        System.out.println("Changed font size to " + newSize);
+        createGUIWithFontSize(newSize);
+
+        ninjaLinkConfig.fontSize = newSize;
+        trySaveConfig();
+    }
+
+    private static synchronized void createGUIWithFontSize(int size) {
+        Font defaultFont = UIManager.getFont("defaultFont");
+        UIManager.put("defaultFont", defaultFont.deriveFont((float) size));
+        UIManager.put("Table.foreground", Color.WHITE);
+        if (ninjaLinkGUI != null) {
+            ninjaLinkGUI.discard();
+            ninjaLinkConfig.bounds = ninjaLinkGUI.getBounds();
+        }
+        ninjaLinkGUI = new NinjaLinkGUI(NinjaLinkClient::close, getKeyListener());
+        ninjaLinkGUI.setData(latestData, myData);
+        ninjaLinkGUI.setBounds(ninjaLinkConfig.bounds);
+        ninjaLinkGUI.setPinned(ninjaLinkConfig.guiPinned);
+        ninjaLinkGUI.adjustSize();
+        ninjaLinkGUI.setVisible(true);
+        ninjaLinkGUI.requestFocus();
+    }
+
     private static void swapGuiPinned() {
         ninjaLinkGUI.setPinned(ninjaLinkConfig.guiPinned = !ninjaLinkConfig.guiPinned);
+        trySaveConfig();
+    }
+
+    private static void trySaveConfig() {
         if (!ninjaLinkConfig.trySave()) System.out.println("Failed to save config!");
     }
 
@@ -135,6 +171,8 @@ public final class NinjaLinkClient {
         }
         if (ninjabrainBot != null) ninjabrainBot.close();
         SocketUtil.carelesslyClose(socket);
+        if (ninjaLinkGUI != null) ninjaLinkConfig.bounds = ninjaLinkGUI.getBounds();
+        trySaveConfig();
     }
 
     private static void onNBotConnectionStateChange(NinjabrainBotConnector.ConnectionState previousState, NinjabrainBotConnector.ConnectionState connectionState) {
@@ -247,8 +285,9 @@ public final class NinjaLinkClient {
         }
     }
 
-    private static void onNewGroupData(NinjaLinkGroupData ninjaLinkGroupData) {
+    private static synchronized void onNewGroupData(NinjaLinkGroupData ninjaLinkGroupData) {
         System.out.println("New group data received: " + ninjaLinkGroupData.toJson());
+        NinjaLinkClient.latestData = ninjaLinkGroupData;
         if (ninjaLinkGUI != null) ninjaLinkGUI.setData(ninjaLinkGroupData, myData);
     }
 }

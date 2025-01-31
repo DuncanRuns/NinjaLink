@@ -1,12 +1,12 @@
 package xyz.duncanruns.ninjalink.client.gui;
 
+import org.jetbrains.annotations.NotNull;
 import xyz.duncanruns.ninjalink.client.NinjabrainBotConnector;
 import xyz.duncanruns.ninjalink.data.Dimension;
 import xyz.duncanruns.ninjalink.data.*;
 import xyz.duncanruns.ninjalink.util.AngleUtil;
 
 import javax.swing.*;
-import javax.swing.border.MatteBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
@@ -18,23 +18,27 @@ import java.awt.event.WindowEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class NinjaLinkGUI extends JFrame {
     private final JPanel mainPanel = new JPanel();
     private final JTable playerTable = new JTable();
     private final JTable strongholdTable = new JTable();
     private final JLabel ninjabrainBotLabel = new JLabel("Not connected to Ninjabrain Bot");
+    private final int paddingSize = UIManager.getFont("defaultFont").getSize() / 2;
+    private boolean discarded = false;
 
     public NinjaLinkGUI(Runnable onClose, KeyListener keyListener) {
         super();
         GridBagLayout gridBagLayout = new GridBagLayout();
         GridBagConstraints constraints = new GridBagConstraints();
-        constraints.ipady = 10;
+        constraints.ipady = paddingSize;
         constraints.gridx = 0;
         constraints.weightx = 1;
         constraints.fill = GridBagConstraints.HORIZONTAL;
         mainPanel.setLayout(gridBagLayout);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(0, paddingSize, paddingSize, paddingSize));
         ninjabrainBotLabel.setHorizontalAlignment(SwingConstants.CENTER);
         setContentPane(mainPanel);
         mainPanel.add(ninjabrainBotLabel, constraints);
@@ -49,14 +53,13 @@ public class NinjaLinkGUI extends JFrame {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                if (discarded) return;
                 onClose.run();
             }
         });
         setTitle("NinjaLink");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setResizable(false);
         addKeyListener(keyListener);
-        pack();
     }
 
     public void setData(NinjaLinkGroupData groupData, NinjabrainBotEventData myData) {
@@ -118,22 +121,57 @@ public class NinjaLinkGUI extends JFrame {
         playerTable.setModel(playerTableModel);
         strongholdTable.setModel(strongholdTableModel);
         for (JTable table : new JTable[]{playerTable, strongholdTable}) {
-            DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-            centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+            DefaultTableCellRenderer centerRenderer = getNinjaLinkCellRenderer();
             table.setDefaultRenderer(Object.class, centerRenderer);
             table.setFocusable(false);
             table.setRowSelectionAllowed(false);
             table.setCellSelectionEnabled(false);
-            table.setBorder(new MatteBorder(1, 1, 1, 1, UIManager.getColor("")));
             resizeColumnWidth(table);
         }
-        pack();
+        PercentageCellRenderer percentageCellRenderer = new PercentageCellRenderer();
+        percentageCellRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        AngleCellRenderer angleCellRenderer = new AngleCellRenderer();
+        angleCellRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        strongholdTable.getColumnModel().getColumn(1).setCellRenderer(percentageCellRenderer);
+        strongholdTable.getColumnModel().getColumn(4).setCellRenderer(angleCellRenderer);
+
+        adjustSize();
+    }
+
+    @NotNull
+    private static DefaultTableCellRenderer getNinjaLinkCellRenderer() {
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                c.setForeground(Color.getHSBColor(0, 0, row == 0 ? .8f : 1f));
+                return c;
+            }
+        };
+        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        return centerRenderer;
+    }
+
+    public void adjustSize() {
+        Container contentPane = getContentPane();
+        contentPane.revalidate();
+
+        Insets insets = getInsets();
+        java.awt.Dimension contentPref = contentPane.getPreferredSize();
+        int requiredHeight = contentPref.height + insets.top + insets.bottom + 50;
+        int currentHeight = getHeight();
+        int requiredWidth = contentPref.width + insets.right + insets.left + 30;
+        int currentWidth = getWidth();
+
+        if (requiredHeight > currentHeight || requiredWidth > currentWidth)
+            setSize(Math.max(currentWidth, requiredWidth), Math.max(currentHeight, requiredHeight));
+
     }
 
     private static void resizeColumnWidth(JTable table) {
         final TableColumnModel columnModel = table.getColumnModel();
         for (int column = 0; column < table.getColumnCount(); column++) {
-            int width = 15; // Min width
+            int width = 15;
             for (int row = 0; row < table.getRowCount(); row++) {
                 TableCellRenderer renderer = table.getCellRenderer(row, column);
                 Component comp = table.prepareRenderer(renderer, row, column);
@@ -171,5 +209,56 @@ public class NinjaLinkGUI extends JFrame {
     public void setPinned(boolean b) {
         setAlwaysOnTop(b);
         setTitle("NinjaLink" + (b ? " \uD83D\uDCCC" : ""));
+    }
+
+    public void discard() {
+        discarded = true;
+        dispose();
+    }
+
+    private static class PercentageCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            if (row == 0) {
+                c.setForeground(Color.getHSBColor(0, 0, .8f));
+                return c;
+            }
+            if (value == null) return c;
+            try {
+                String text = value.toString().replace("%", "");
+                float percent = Float.parseFloat(text);
+                // Gradient from red (0%) to green (100%)
+                float hue = (percent / 100.0f) * 0.333f; // 0.0 (red) to 0.333 (green)
+                c.setForeground(Color.getHSBColor(hue, 1.0f, 1f));
+            } catch (NumberFormatException e) {
+                // Keep default color if parsing fails
+            }
+            return c;
+        }
+    }
+
+    private static class AngleCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            if (row == 0) {
+                c.setForeground(Color.getHSBColor(0, 0, .8f));
+                return c;
+            }
+            if (value == null) return c;
+            String text = value.toString();
+            if (text.isEmpty()) return c;
+
+            Matcher matcher = Pattern.compile(".+\\d+\\.\\d+.+?(\\d+\\.\\d+).+").matcher(text);
+            if (!matcher.matches()) return c;
+            try {
+                float angleDiff = Float.parseFloat(matcher.group(1));
+                float hue = (1.0f - (angleDiff / 180.0f)) * 0.333f;
+                c.setForeground(Color.getHSBColor(hue, 1.0f, 1f));
+            } catch (NumberFormatException ignored) {
+            }
+            return c;
+        }
     }
 }

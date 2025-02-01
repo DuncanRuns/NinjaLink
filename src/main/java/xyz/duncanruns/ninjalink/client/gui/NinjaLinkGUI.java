@@ -197,9 +197,6 @@ public class NinjaLinkGUI extends JFrame {
             case CLOSED:
                 ninjabrainBotLabel.setText("Not connected to Ninjabrain Bot");
                 break;
-            // case CONNECTING:
-            //     ninjabrainBotLabel.setText("Connecting to Ninjabrain Bot...");
-            //     break;
             case CONNECTED:
                 ninjabrainBotLabel.setText("Connected to Ninjabrain Bot");
                 break;

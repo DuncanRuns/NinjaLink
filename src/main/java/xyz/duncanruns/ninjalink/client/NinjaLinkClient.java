@@ -176,8 +176,7 @@ public final class NinjaLinkClient {
     }
 
     private static void onNBotConnectionStateChange(NinjabrainBotConnector.ConnectionState previousState, NinjabrainBotConnector.ConnectionState connectionState) {
-        if (ninjaLinkGUI != null && connectionState != NinjabrainBotConnector.ConnectionState.CONNECTING)
-            ninjaLinkGUI.setNinjabrainBotConnectionState(connectionState);
+        if (ninjaLinkGUI != null) ninjaLinkGUI.setNinjabrainBotConnectionState(connectionState);
         if (previousState == NinjabrainBotConnector.ConnectionState.CONNECTED) {
             System.out.println("Disconnected from Ninjabrain Bot");
             try {

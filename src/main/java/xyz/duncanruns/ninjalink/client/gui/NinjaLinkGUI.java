@@ -22,21 +22,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class NinjaLinkGUI extends JFrame {
-    private final JPanel mainPanel = new JPanel();
     private final JTable playerTable = new JTable();
     private final JTable strongholdTable = new JTable();
     private final JLabel ninjabrainBotLabel = new JLabel("Not connected to Ninjabrain Bot");
-    private final int paddingSize = UIManager.getFont("defaultFont").getSize() / 2;
     private boolean discarded = false;
 
     public NinjaLinkGUI(Runnable onClose, KeyListener keyListener) {
         super();
         GridBagLayout gridBagLayout = new GridBagLayout();
         GridBagConstraints constraints = new GridBagConstraints();
+        int paddingSize = UIManager.getFont("defaultFont").getSize() / 2;
         constraints.ipady = paddingSize;
         constraints.gridx = 0;
         constraints.weightx = 1;
         constraints.fill = GridBagConstraints.HORIZONTAL;
+        JPanel mainPanel = new JPanel();
         mainPanel.setLayout(gridBagLayout);
         mainPanel.setBorder(BorderFactory.createEmptyBorder(0, paddingSize, paddingSize, paddingSize));
         ninjabrainBotLabel.setHorizontalAlignment(SwingConstants.CENTER);

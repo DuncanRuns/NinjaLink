@@ -247,14 +247,11 @@ public class NinjaLinkGUI extends JFrame {
             String text = value.toString();
             if (text.isEmpty()) return c;
 
-            Matcher matcher = Pattern.compile(".+\\d+\\.\\d+.+?(\\d+\\.\\d+).+").matcher(text);
+            Matcher matcher = Pattern.compile(".*\\(.*?(\\d+\\.\\d+).*").matcher(text);
             if (!matcher.matches()) return c;
-            try {
-                float angleDiff = Float.parseFloat(matcher.group(1));
-                float hue = (1.0f - (angleDiff / 180.0f)) * 0.333f;
-                c.setForeground(Color.getHSBColor(hue, 1.0f, 1f));
-            } catch (NumberFormatException ignored) {
-            }
+            float angleDiff = Float.parseFloat(matcher.group(1));
+            float hue = (1.0f - (angleDiff / 180.0f)) * 0.333f;
+            c.setForeground(Color.getHSBColor(hue, 1.0f, 1f));
             return c;
         }
     }

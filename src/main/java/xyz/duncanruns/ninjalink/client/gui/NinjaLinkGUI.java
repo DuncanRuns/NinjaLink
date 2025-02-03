@@ -1,5 +1,6 @@
 package xyz.duncanruns.ninjalink.client.gui;
 
+import com.intellij.uiDesigner.core.Spacer;
 import org.jetbrains.annotations.NotNull;
 import xyz.duncanruns.ninjalink.client.NinjabrainBotConnector;
 import xyz.duncanruns.ninjalink.data.Dimension;
@@ -18,6 +19,7 @@ import java.awt.event.WindowEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,6 +28,9 @@ public class NinjaLinkGUI extends JFrame {
     private final JTable strongholdTable = new JTable();
     private final JLabel ninjabrainBotLabel = new JLabel("Not connected to Ninjabrain Bot");
     private boolean discarded = false;
+
+    private JLabel strongholdsLabel;
+    private JLabel playersLabel;
 
     public NinjaLinkGUI(Runnable onClose, KeyListener keyListener) {
         super();
@@ -42,14 +47,16 @@ public class NinjaLinkGUI extends JFrame {
         ninjabrainBotLabel.setHorizontalAlignment(SwingConstants.CENTER);
         setContentPane(mainPanel);
         mainPanel.add(ninjabrainBotLabel, constraints);
-        JLabel strongholdsLabel = new JLabel("Strongholds");
-        strongholdsLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        mainPanel.add(strongholdsLabel, constraints);
-        mainPanel.add(strongholdTable, constraints);
-        JLabel playersLabel = new JLabel("Players");
+        playersLabel = new JLabel("Players");
         playersLabel.setHorizontalAlignment(SwingConstants.CENTER);
         mainPanel.add(playersLabel, constraints);
         mainPanel.add(playerTable, constraints);
+        strongholdsLabel = new JLabel("Strongholds");
+        strongholdsLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        mainPanel.add(strongholdsLabel, constraints);
+        mainPanel.add(strongholdTable, constraints);
+        constraints.weighty = 1;
+        mainPanel.add(new Spacer(), constraints);
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -87,11 +94,15 @@ public class NinjaLinkGUI extends JFrame {
             }
         };
 
+        AtomicInteger totalStrongholds = new AtomicInteger();
+        AtomicInteger totalPlayers = new AtomicInteger();
+
         playerTableModel.addRow(playerTableHeaders);
         strongholdTableModel.addRow(strongholdTableHeaders);
         playerDataMap.forEach((playerName, playerData) -> {
             if (playerData.isEmpty()) return; // this should not be the case but whatever
 
+            totalPlayers.getAndIncrement();
             playerTableModel.addRow(new String[]{
                     playerName,
                     playerData.position == null ? "" : playerData.position.asBlockPosString(),
@@ -109,6 +120,7 @@ public class NinjaLinkGUI extends JFrame {
                     double angleDiffToStronghold = AngleUtil.angleDifference(myData.playerPosition.horizontalAngle, angleToStronghold);
                     strongholdAngleSection = String.format(angleDiffToStronghold > 0 ? "%.1f (-> %.1f)" : "%.1f (<- %.1f)", angleToStronghold, Math.abs(angleDiffToStronghold));
                 }
+                totalStrongholds.getAndIncrement();
                 strongholdTableModel.addRow(new String[]{
                         playerName,
                         playerData.hasStronghold() ? String.format("%.1f%%", Objects.requireNonNull(playerData.bestStrongholdPrediction).certainty * 100) : "",
@@ -135,6 +147,18 @@ public class NinjaLinkGUI extends JFrame {
         strongholdTable.getColumnModel().getColumn(1).setCellRenderer(percentageCellRenderer);
         strongholdTable.getColumnModel().getColumn(4).setCellRenderer(angleCellRenderer);
 
+        if (totalPlayers.get() == 0) {
+            strongholdsLabel.setVisible(false);
+            strongholdTable.setVisible(false);
+            playerTable.setVisible(false);
+            playersLabel.setText("Waiting for data...");
+        } else {
+            playersLabel.setText("Players");
+            playerTable.setVisible(true);
+            strongholdsLabel.setVisible(totalStrongholds.get() > 0);
+            strongholdTable.setVisible(totalStrongholds.get() > 0);
+        }
+
         adjustSize();
     }
 
@@ -158,14 +182,15 @@ public class NinjaLinkGUI extends JFrame {
 
         Insets insets = getInsets();
         java.awt.Dimension contentPref = contentPane.getPreferredSize();
-        int requiredHeight = contentPref.height + insets.top + insets.bottom + 50;
+        int requiredHeight = contentPref.height + insets.top + insets.bottom + 30;
         int currentHeight = getHeight();
         int requiredWidth = contentPref.width + insets.right + insets.left + 30;
         int currentWidth = getWidth();
 
-        if (requiredHeight > currentHeight || requiredWidth > currentWidth)
-            setSize(Math.max(currentWidth, requiredWidth), Math.max(currentHeight, requiredHeight));
         setMinimumSize(new java.awt.Dimension(requiredWidth, requiredHeight));
+
+        if (requiredWidth > currentWidth) setSize(requiredWidth, requiredHeight);
+        else if (requiredHeight != currentHeight) setSize(getWidth(), requiredHeight);
     }
 
     private static void resizeColumnWidth(JTable table) {

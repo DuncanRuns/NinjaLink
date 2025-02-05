@@ -14,6 +14,8 @@ public class NinjaLinkConfig {
 
     public String ip = "";
     public String nickname = "";
+    public String roomName = "";
+    public String roomPass = "";
     public boolean guiPinned = false;
     public int fontSize = 16;
     public Rectangle bounds = new Rectangle(100, 100, 480, 270);

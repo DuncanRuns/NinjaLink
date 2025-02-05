@@ -3,6 +3,7 @@ package xyz.duncanruns.ninjalink.client;
 import com.formdev.flatlaf.FlatDarkLaf;
 import org.jetbrains.annotations.NotNull;
 import xyz.duncanruns.ninjalink.client.gui.NinjaLinkGUI;
+import xyz.duncanruns.ninjalink.client.gui.NinjaLinkPrompt;
 import xyz.duncanruns.ninjalink.data.NinjaLinkGroupData;
 import xyz.duncanruns.ninjalink.data.NinjabrainBotEventData;
 import xyz.duncanruns.ninjalink.util.SocketUtil;
@@ -17,7 +18,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 public final class NinjaLinkClient {
     private static NinjabrainBotEventData myData = NinjabrainBotEventData.empty();
@@ -39,57 +39,65 @@ public final class NinjaLinkClient {
             else System.out.println("Failed to load config!");
         }
 
+        // if not nogui
         if (Arrays.asList(args).stream().skip(2).noneMatch(s -> s.toLowerCase().contains("nogui")))
             SwingUtilities.invokeAndWait(() -> {
                 FlatDarkLaf.setup();
                 createGUIWithFontSize(ninjaLinkConfig.fontSize);
             });
 
-        AtomicReference<String> toConnectToRef = new AtomicReference<>(ninjaLinkConfig.ip);
-        AtomicReference<String> nameRef = new AtomicReference<>(ninjaLinkConfig.nickname);
-        if (ninjaLinkGUI != null && args.length == 0) {
-            NinjaLinkConfig finalNinjaLinkConfig = ninjaLinkConfig;
-            SwingUtilities.invokeAndWait(() -> {
-                toConnectToRef.set(JOptionPane.showInputDialog(ninjaLinkGUI, "Input a NinjaLink server IP and port (optionally):", finalNinjaLinkConfig.ip));
-                if (toConnectToRef.get() == null || toConnectToRef.get().isEmpty()) return;
-                nameRef.set(JOptionPane.showInputDialog(ninjaLinkGUI, "Enter a nickname:", finalNinjaLinkConfig.nickname));
-            });
-        } else if (args.length > 0) {
-            toConnectToRef.set(args[0]);
-            nameRef.set(args[1]);
+        String ip;
+        String nickname;
+        String roomName = "";
+        String roomPass = "";
+
+        if (ninjaLinkGUI == null) {
+            if (args.length < 2) {
+                close("Not enough args! You must at least supply an address and nickname.");
+                return;
+            }
+            ip = args[0];
+            nickname = args[1];
+            if (args.length >= 3) {
+                roomName = args[2];
+                if (args.length >= 4) {
+                    roomPass = args[3];
+                }
+            }
+        } else {
+            NinjaLinkPrompt prompt = new NinjaLinkPrompt(ninjaLinkGUI, ninjaLinkConfig);
+            prompt.setVisible(true);
+            if (!prompt.hasPressedOk()) {
+                close();
+                return;
+            }
+            ip = prompt.getAddress();
+            nickname = prompt.getNickname();
+            roomName = prompt.getRoomName();
+            roomPass = prompt.getRoomPass();
         }
 
-        String toConnectTo = toConnectToRef.get();
-        if (toConnectTo == null || toConnectTo.isEmpty()) {
-            close();
-            return;
-        }
+        ninjaLinkConfig.ip = ip;
 
-        String ip = toConnectTo;
         int port = 52534;
         if (ip.contains(":")) {
-            String[] split = toConnectTo.split(":");
-            port = Integer.parseInt(split[1]);
+            String[] split = ip.split(":");
+            try {
+                port = Integer.parseInt(split[1]);
+            } catch (Exception e) {
+                close("Failed to convert port to a number!");
+                return;
+            }
             ip = split[0];
         }
 
-        String name = nameRef.get();
-        if (name == null) {
-            close();
-            return;
-        }
-        name = name.trim();
-        if (name.isEmpty()) {
-            close();
-            return;
-        }
-
-        ninjaLinkConfig.ip = toConnectTo;
-        ninjaLinkConfig.nickname = name;
+        ninjaLinkConfig.nickname = nickname;
+        ninjaLinkConfig.roomName = roomName;
+        ninjaLinkConfig.roomPass = roomPass;
         trySaveConfig();
 
         try {
-            runClient(ip, port, name);
+            runClient(ip, port);
         } catch (Exception e) {
             System.out.println("Error while trying to run client: " + e);
             if (ninjaLinkGUI != null)
@@ -168,6 +176,8 @@ public final class NinjaLinkClient {
                     JOptionPane.showMessageDialog(ninjaLinkGUI, closeMessage, "NinjaLink Closing...", JOptionPane.WARNING_MESSAGE);
                 ninjaLinkGUI.dispose();
             });
+        } else {
+            System.out.println(closeMessage);
         }
         if (ninjabrainBot != null) ninjabrainBot.close();
         SocketUtil.carelesslyClose(socket);
@@ -209,7 +219,7 @@ public final class NinjaLinkClient {
         }
     }
 
-    private static void runClient(String ip, int port, String name) throws IOException {
+    private static void runClient(String ip, int port) throws IOException {
         try {
             socket = new Socket(ip, port);
         } catch (Exception e) {
@@ -219,7 +229,7 @@ public final class NinjaLinkClient {
             return;
         }
 
-        SocketUtil.sendStringWithLength(socket, name);
+        SocketUtil.sendStringWithLength(socket, ninjaLinkConfig.nickname);
         String response = SocketUtil.receiveStringWithLength(socket);
         if (response == null) {
             if (closing) return;

@@ -36,15 +36,36 @@ public final class NinjaLinkServer {
 
     private static synchronized void acceptNewClient(Socket client) {
         try {
-            String name = SocketUtil.receiveStringWithLength(client);
+            String nickname = SocketUtil.receiveStringWithLength(client);
+            if (nickname == null) {
+                SocketUtil.carelesslyClose(client);
+                return;
+            }
+            String roomName = SocketUtil.receiveStringWithLength(client);
+            if (roomName == null) {
+                SocketUtil.carelesslyClose(client);
+                return;
+            }
+            String roomPass = SocketUtil.receiveStringWithLength(client);
+            if (roomPass == null) {
+                SocketUtil.carelesslyClose(client);
+                return;
+            }
 
-            if (name.trim().isEmpty()) {
+            if (!roomName.trim().isEmpty()) {
+                SocketUtil.sendStringWithLength(client, "R"); // Rejected
+                SocketUtil.sendStringWithLength(client, "This server does not support rooms!");
+                SocketUtil.carelesslyClose(client);
+                return;
+            }
+
+            if (nickname.trim().isEmpty()) {
                 SocketUtil.sendStringWithLength(client, "R"); // Rejected
                 SocketUtil.sendStringWithLength(client, "Name cannot be empty!");
                 SocketUtil.carelesslyClose(client);
                 return;
 
-            } else if (userMap.containsKey(name)) {
+            } else if (userMap.containsKey(nickname)) {
                 SocketUtil.sendStringWithLength(client, "R"); // Rejected
                 SocketUtil.sendStringWithLength(client, "A user with that name is already connected!");
                 SocketUtil.carelesslyClose(client);
@@ -52,9 +73,9 @@ public final class NinjaLinkServer {
             }
             SocketUtil.sendStringWithLength(client, "A"); // Accepted
 
-            userMap.put(name, client);
-            if (!sendGroupDataToClient(name, client)) return;
-            new Thread(() -> userReceiveLoop(name, client)).start();
+            userMap.put(nickname, client);
+            if (!sendGroupDataToClient(nickname, client)) return;
+            new Thread(() -> userReceiveLoop(nickname, client)).start();
 
         } catch (Exception e) {
             System.out.println("Failed to accept " + client + " due to exception: " + e);

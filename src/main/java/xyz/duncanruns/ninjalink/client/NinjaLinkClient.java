@@ -230,6 +230,8 @@ public final class NinjaLinkClient {
         }
 
         SocketUtil.sendStringWithLength(socket, ninjaLinkConfig.nickname);
+        SocketUtil.sendStringWithLength(socket, ninjaLinkConfig.roomName);
+        SocketUtil.sendStringWithLength(socket, ninjaLinkConfig.roomPass);
         String response = SocketUtil.receiveStringWithLength(socket);
         if (response == null) {
             if (closing) return;

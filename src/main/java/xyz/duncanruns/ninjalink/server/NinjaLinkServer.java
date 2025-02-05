@@ -53,22 +53,16 @@ public final class NinjaLinkServer {
             }
 
             if (!roomName.trim().isEmpty()) {
-                SocketUtil.sendStringWithLength(client, "R"); // Rejected
-                SocketUtil.sendStringWithLength(client, "This server does not support rooms!");
-                SocketUtil.carelesslyClose(client);
+                rejectConnection(client, "This server does not support rooms!");
                 return;
             }
 
             if (nickname.trim().isEmpty()) {
-                SocketUtil.sendStringWithLength(client, "R"); // Rejected
-                SocketUtil.sendStringWithLength(client, "Name cannot be empty!");
-                SocketUtil.carelesslyClose(client);
+                rejectConnection(client, "Name cannot be empty!");
                 return;
 
             } else if (userMap.containsKey(nickname)) {
-                SocketUtil.sendStringWithLength(client, "R"); // Rejected
-                SocketUtil.sendStringWithLength(client, "A user with that name is already connected!");
-                SocketUtil.carelesslyClose(client);
+                rejectConnection(client, "A user with that name is already connected!");
                 return;
             }
             SocketUtil.sendStringWithLength(client, "A"); // Accepted
@@ -81,6 +75,15 @@ public final class NinjaLinkServer {
             System.out.println("Failed to accept " + client + " due to exception: " + e);
             e.printStackTrace();
         }
+    }
+
+    private static void rejectConnection(Socket client, String msg) {
+        try {
+            SocketUtil.sendStringWithLength(client, "R"); // Rejected
+            SocketUtil.sendStringWithLength(client, msg);
+        } catch (Exception ignored) {
+        }
+        SocketUtil.carelesslyClose(client);
     }
 
     private static void userReceiveLoop(String name, Socket client) {

@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Optional;
 
 public final class NinjaLinkClient {
@@ -39,32 +40,19 @@ public final class NinjaLinkClient {
             else System.out.println("Failed to load config!");
         }
 
-        // if not nogui
-        if (Arrays.asList(args).stream().skip(2).noneMatch(s -> s.toLowerCase().contains("nogui")))
-            SwingUtilities.invokeAndWait(() -> {
-                FlatDarkLaf.setup();
-                createGUIWithFontSize(ninjaLinkConfig.fontSize);
-            });
+        Iterator<String> argIter = Arrays.stream(args).iterator();
 
-        String ip;
-        String nickname;
-        String roomName = "";
-        String roomPass = "";
+        String ip = argIter.hasNext() ? argIter.next() : "";
+        String nickname = argIter.hasNext() ? argIter.next() : "";
+        String roomName = argIter.hasNext() ? argIter.next() : "";
+        String roomPass = argIter.hasNext() ? argIter.next() : "";
+        if (!(argIter.hasNext() && argIter.next().toLowerCase().contains("nogui"))) SwingUtilities.invokeAndWait(() -> {
+            FlatDarkLaf.setup();
+            createGUIWithFontSize(ninjaLinkConfig.fontSize);
+        });
 
-        if (ninjaLinkGUI == null) {
-            if (args.length < 2) {
-                close("Not enough args! You must at least supply an address and nickname.");
-                return;
-            }
-            ip = args[0];
-            nickname = args[1];
-            if (args.length >= 3) {
-                roomName = args[2];
-                if (args.length >= 4) {
-                    roomPass = args[3];
-                }
-            }
-        } else {
+
+        if (ninjaLinkGUI != null && nickname.isEmpty()) {
             NinjaLinkPrompt prompt = new NinjaLinkPrompt(ninjaLinkGUI, ninjaLinkConfig);
             prompt.setVisible(true);
             if (!prompt.hasPressedOk()) {
@@ -180,9 +168,17 @@ public final class NinjaLinkClient {
             System.out.println(closeMessage);
         }
         if (ninjabrainBot != null) ninjabrainBot.close();
+        if (socket != null && socket.isConnected() && !socket.isClosed()) sendCarelessDisconnect(socket);
         SocketUtil.carelesslyClose(socket);
         if (ninjaLinkGUI != null) ninjaLinkConfig.bounds = ninjaLinkGUI.getBounds();
         trySaveConfig();
+    }
+
+    private static void sendCarelessDisconnect(Socket socket) {
+        try {
+            SocketUtil.sendStringWithLength(socket, "D");
+        } catch (Exception ignored) {
+        }
     }
 
     private static void onNBotConnectionStateChange(NinjabrainBotConnector.ConnectionState previousState, NinjabrainBotConnector.ConnectionState connectionState) {

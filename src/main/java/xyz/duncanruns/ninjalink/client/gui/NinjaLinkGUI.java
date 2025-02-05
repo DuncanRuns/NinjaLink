@@ -28,9 +28,10 @@ public class NinjaLinkGUI extends JFrame {
     private final JTable strongholdTable = new JTable();
     private final JLabel ninjabrainBotLabel = new JLabel("Not connected to Ninjabrain Bot");
     private boolean discarded = false;
+    private static final boolean CALCULATE_VIEWER_ANGLE_AND_DIST = false;
 
-    private JLabel strongholdsLabel;
-    private JLabel playersLabel;
+    private final JLabel strongholdsLabel;
+    private final JLabel playersLabel;
 
     public NinjaLinkGUI(Runnable onClose, KeyListener keyListener) {
         super();
@@ -109,22 +110,25 @@ public class NinjaLinkGUI extends JFrame {
                     playerData.dimension == null ? "" : playerData.dimension.toString()
             });
             if (playerData.hasStronghold()) {
-                double strongholdDist = 0;
-                String strongholdAngleSection = "";
+                StrongholdPrediction bestStrongholdPrediction = playerData.bestStrongholdPrediction;
+                assert bestStrongholdPrediction != null;
+                double strongholdDist = bestStrongholdPrediction.originalDistance;
+                String strongholdAngleSection = String.format("%.1f", bestStrongholdPrediction.originalAngle);
                 boolean hasMyPosition = !myData.playerPosition.isEmpty();
-                Position strongholdPositionInMyDim = Objects.requireNonNull(playerData.bestStrongholdPrediction).position.translateDimension(Dimension.OVERWORLD, hasMyPosition ? myData.playerPosition.getDimension() : Dimension.NETHER);
-                if (hasMyPosition) {
+                boolean calcMyAngleAndDist = CALCULATE_VIEWER_ANGLE_AND_DIST && hasMyPosition;
+                Position strongholdPositionInMyDim = Objects.requireNonNull(bestStrongholdPrediction).position.translateDimension(Dimension.OVERWORLD, hasMyPosition ? myData.playerPosition.getDimension() : Dimension.NETHER);
+                if (calcMyAngleAndDist) {
                     Position myPosition = myData.playerPosition.getPosition();
                     strongholdDist = strongholdPositionInMyDim.distanceTo(myPosition);
                     double angleToStronghold = myPosition.angleTo(strongholdPositionInMyDim);
-                    double angleDiffToStronghold = AngleUtil.angleDifference(myData.playerPosition.horizontalAngle, angleToStronghold);
+                    double angleDiffToStronghold = AngleUtil.angleDifference(Objects.requireNonNull(myData.playerPosition.horizontalAngle), angleToStronghold);
                     strongholdAngleSection = String.format(angleDiffToStronghold > 0 ? "%.1f (-> %.1f)" : "%.1f (<- %.1f)", angleToStronghold, Math.abs(angleDiffToStronghold));
                 }
                 totalStrongholds.getAndIncrement();
                 strongholdTableModel.addRow(new String[]{
                         playerName,
-                        playerData.hasStronghold() ? String.format("%.1f%%", Objects.requireNonNull(playerData.bestStrongholdPrediction).certainty * 100) : "",
-                        hasMyPosition && playerData.hasStronghold() ? String.valueOf((int) Math.floor(strongholdDist)) : "",
+                        String.format("%.1f%%", Objects.requireNonNull(bestStrongholdPrediction).certainty * 100),
+                        String.valueOf((int) Math.floor(strongholdDist)),
                         playerData.hasStronghold() ? (Objects.requireNonNull(strongholdPositionInMyDim).asBlockPosString()) : "",
                         strongholdAngleSection
                 });
@@ -268,6 +272,7 @@ public class NinjaLinkGUI extends JFrame {
                 c.setForeground(Color.getHSBColor(0, 0, .8f));
                 return c;
             }
+            c.setForeground(Color.getHSBColor(0, 0, 1));
             if (value == null) return c;
             String text = value.toString();
             if (text.isEmpty()) return c;

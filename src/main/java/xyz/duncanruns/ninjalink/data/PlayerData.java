@@ -16,14 +16,15 @@ public class PlayerData {
         NinjabrainBotEventData.EyeThrowDto eyeThrow = data.eyeThrows.isEmpty() ? null : data.eyeThrows.get(0);
         NinjabrainBotEventData.PredictionDto prediction = eyeThrow == null || data.predictions.isEmpty() ? null : data.predictions.get(0);
         Dimension playerDimension = hasPlayerPosition ? Dimension.fromBooleanParams(playerPosition.isInOverworld, playerPosition.isInNether) : null;
+        Position shPosition = prediction == null ? null : new Position(prediction.chunkX * 16 + 4, prediction.chunkZ * 16 + 4);
         return new PlayerData(
                 hasPlayerPosition ? Position.fromDimensionCoordinates(Dimension.OVERWORLD, playerPosition.xInOverworld, playerPosition.zInOverworld, playerDimension) : null,
                 hasPlayerPosition ? playerDimension : null,
                 prediction == null ? null : new StrongholdPrediction(
-                        new Position(prediction.chunkX * 16 + 4, prediction.chunkZ * 16 + 4),
+                        shPosition,
                         eyeThrow.angle,
                         prediction.certainty,
-                        prediction.overworldDistance
+                        new Position(eyeThrow.xInOverworld, eyeThrow.zInOverworld).distanceTo(shPosition)
                 )
         );
     }

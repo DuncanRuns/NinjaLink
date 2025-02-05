@@ -77,7 +77,7 @@ public final class NinjaLinkClient {
             roomPass = prompt.getRoomPass();
         }
 
-        ninjaLinkConfig.ip = ip;
+        ninjaLinkConfig.ip = ip.trim();
 
         int port = 52534;
         if (ip.contains(":")) {
@@ -91,9 +91,9 @@ public final class NinjaLinkClient {
             ip = split[0];
         }
 
-        ninjaLinkConfig.nickname = nickname;
-        ninjaLinkConfig.roomName = roomName;
-        ninjaLinkConfig.roomPass = roomPass;
+        ninjaLinkConfig.nickname = nickname.trim();
+        ninjaLinkConfig.roomName = roomName.trim();
+        ninjaLinkConfig.roomPass = roomPass.trim();
         trySaveConfig();
 
         try {

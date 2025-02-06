@@ -107,6 +107,8 @@ public class Room {
             return AcceptType.REJECTED;
         }
         SocketUtil.sendStringWithLength(client, "A"); // Accepted
+        SocketUtil.sendStringWithLength(client, !roomName.isEmpty() && this.name.isEmpty() ? "Warning: this server does not use custom rooms, anyone using this address will be put into the same room. To skip this message next time, leave the room name and password blank." : ""); // Displayed Server Message
+
 
         userMap.put(nickname, client);
         if (!sendGroupDataToClient(nickname, client)) return AcceptType.FAILED;

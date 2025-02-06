@@ -252,6 +252,20 @@ public final class NinjaLinkClient {
             return;
         }
 
+        response = SocketUtil.receiveStringWithLength(socket);
+        if (response == null) {
+            if (closing) return;
+            System.out.println("Failed to communicate with server.");
+            close("Rejected connection, then failed to communicate with server.");
+        }
+        if (!response.isEmpty()) {
+            if (ninjaLinkGUI == null) {
+                System.out.println("Message from server:\n" + response);
+            } else {
+                JOptionPane.showMessageDialog(ninjaLinkGUI, response, "NinjaLink: Server Message", JOptionPane.INFORMATION_MESSAGE);
+            }
+        }
+
         System.out.println("Connection accepted!");
 
         ninjabrainBot = new NinjabrainBotConnector(NinjaLinkClient::onNBotEvent, NinjaLinkClient::onNBotConnectionStateChange);

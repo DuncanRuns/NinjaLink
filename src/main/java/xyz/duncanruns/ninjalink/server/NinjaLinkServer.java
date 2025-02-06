@@ -80,7 +80,7 @@ public final class NinjaLinkServer {
                 return;
             }
 
-            rejectConnection(client, useRooms ? "This server uses rooms! Please input a room name and (optionally) a password to connect to or join a room." : "Failed to connect: unknown reason (this should not happen)");
+            rejectConnection(client, useRooms ? "This server uses rooms! Please input a room name and (optionally) a password to connect to or create a room." : "Failed to connect: unknown reason (this should not happen)");
 
         } catch (Exception e) {
             System.out.println("Failed to accept " + client + " due to exception: " + e);

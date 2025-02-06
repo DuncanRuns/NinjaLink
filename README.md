@@ -35,9 +35,7 @@ A co-op tool to see other player's positions and measured strongholds using Ninj
 
 ## NinjaLink Public Server
 
-As of February 2025, a public NinjaLink server using rooms is available at `ninjalink.duncanruns.xyz`. This is using a
-free tier VPS, and will go down by the end of next January, and the server will need to be replaced (IP will likely
-not change).
+As of February 2025, a public NinjaLink server using rooms is available at `ninjalink.duncanruns.xyz`.
 
 ## Hosting a NinjaLink server
 

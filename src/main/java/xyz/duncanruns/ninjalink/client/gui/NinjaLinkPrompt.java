@@ -45,7 +45,6 @@ public class NinjaLinkPrompt extends JDialog {
     public NinjaLinkPrompt(JFrame owner, NinjaLinkConfig config) {
         super(owner);
         setTitle("NinjaLink: Connect");
-        if (owner != null) setLocation(owner.getLocation());
         setContentPane(contentPane);
         setModal(true);
         getRootPane().setDefaultButton(buttonOK);
@@ -93,6 +92,9 @@ public class NinjaLinkPrompt extends JDialog {
         }
         onUpdate();
         pack();
+        if (owner == null) return;
+        setLocation(owner.getX() + (owner.getWidth() / 2) - (this.getWidth() / 2), owner.getY());
+
     }
 
     private void onUpdate() {

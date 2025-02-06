@@ -10,6 +10,12 @@ public class PlayerData {
     @Nullable
     public final StrongholdPrediction bestStrongholdPrediction;
 
+    public PlayerData(@Nullable Position position, @Nullable Dimension dimension, @Nullable StrongholdPrediction bestStrongholdPrediction) {
+        this.position = position;
+        this.dimension = dimension;
+        this.bestStrongholdPrediction = bestStrongholdPrediction;
+    }
+
     public static PlayerData fromNinjabrainBotEventData(NinjabrainBotEventData data) throws NullPointerException {
         boolean hasPlayerPosition = data.hasPlayerPosition();
         NinjabrainBotEventData.PlayerPositionDto playerPosition = data.playerPosition;
@@ -35,11 +41,5 @@ public class PlayerData {
 
     public boolean hasStronghold() {
         return bestStrongholdPrediction != null;
-    }
-
-    public PlayerData(@Nullable Position position, @Nullable Dimension dimension, @Nullable StrongholdPrediction bestStrongholdPrediction) {
-        this.position = position;
-        this.dimension = dimension;
-        this.bestStrongholdPrediction = bestStrongholdPrediction;
     }
 }

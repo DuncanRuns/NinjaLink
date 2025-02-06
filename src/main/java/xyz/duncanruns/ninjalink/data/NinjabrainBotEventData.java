@@ -23,16 +23,16 @@ public class NinjabrainBotEventData {
         this.predictions = predictions;
     }
 
-    public String toJson() {
-        return GSON.toJson(this);
-    }
-
     public static NinjabrainBotEventData fromJson(String string) throws JsonSyntaxException {
         return GSON.fromJson(string, NinjabrainBotEventData.class);
     }
 
     public static NinjabrainBotEventData empty() {
         return new NinjabrainBotEventData(Collections.emptyList(), "NONE", PlayerPositionDto.empty(), Collections.emptyList());
+    }
+
+    public String toJson() {
+        return GSON.toJson(this);
     }
 
     public boolean hasPlayerPosition() {

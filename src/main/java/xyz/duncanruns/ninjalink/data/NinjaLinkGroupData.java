@@ -11,12 +11,12 @@ public class NinjaLinkGroupData {
 
     public Map<String, PlayerData> playerDataMap = new HashMap<>();
 
-    public String toJson() {
-        return GSON.toJson(this);
-    }
-
     public static NinjaLinkGroupData fromJson(String string) throws JsonSyntaxException {
         return GSON.fromJson(string, NinjaLinkGroupData.class);
+    }
+
+    public String toJson() {
+        return GSON.toJson(this);
     }
 
 }

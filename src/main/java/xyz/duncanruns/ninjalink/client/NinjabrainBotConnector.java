@@ -29,6 +29,23 @@ public class NinjabrainBotConnector {
         this.onEvent = onEvent;
     }
 
+    private static void sleep(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // Method to test the NinjabrainBotConnector, simply outputs connection info and stronghold event data for 2 minutes
+    public static void main(String[] args) throws InterruptedException {
+        System.out.println("Showing NinjabrainBotConnector output for 2 minutes...");
+        NinjabrainBotConnector ninjabrainBotConnector = new NinjabrainBotConnector(System.out::println, (previous, state) -> System.out.println(state));
+        ninjabrainBotConnector.start();
+        Thread.sleep(120_000);
+        ninjabrainBotConnector.close();
+    }
+
     public synchronized void start() {
         if (running) return;
         running = true;
@@ -49,14 +66,6 @@ public class NinjabrainBotConnector {
     public synchronized void close() {
         this.running = false;
         eventSource.cancel();
-    }
-
-    private static void sleep(int millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private synchronized void startNewConnection() {
@@ -100,14 +109,5 @@ public class NinjabrainBotConnector {
         CLOSED,
         CONNECTING,
         CONNECTED
-    }
-
-    // Method to test the NinjabrainBotConnector, simply outputs connection info and stronghold event data for 2 minutes
-    public static void main(String[] args) throws InterruptedException {
-        System.out.println("Showing NinjabrainBotConnector output for 2 minutes...");
-        NinjabrainBotConnector ninjabrainBotConnector = new NinjabrainBotConnector(System.out::println, (previous, state) -> System.out.println(state));
-        ninjabrainBotConnector.start();
-        Thread.sleep(120_000);
-        ninjabrainBotConnector.close();
     }
 }

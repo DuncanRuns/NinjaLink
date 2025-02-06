@@ -4,9 +4,18 @@ public class Position {
     public final double x;
     public final double z;
 
+    public Position(double x, double z) {
+        this.x = x;
+        this.z = z;
+    }
+
     public static Position fromDimensionCoordinates(Dimension inputDimension, double x, double z, Dimension outputDimension) {
         double scale = outputDimension.getCoordinateScale() / inputDimension.getCoordinateScale();
         return new Position(x * scale, z * scale);
+    }
+
+    public static void main(String[] args) {
+        System.out.println(new Position(2268, 711).angleTo(new Position(1752, 568)));
     }
 
     public Position translateDimension(Dimension fromDimension, Dimension toDimension) {
@@ -15,11 +24,6 @@ public class Position {
 
     public double distanceTo(Position other) {
         return Math.sqrt((this.x - other.x) * (this.x - other.x) + (this.z - other.z) * (this.z - other.z));
-    }
-
-    public Position(double x, double z) {
-        this.x = x;
-        this.z = z;
     }
 
     public double angleTo(Position other) {
@@ -37,9 +41,5 @@ public class Position {
 
     public String asBlockPosString() {
         return "(" + (int) (Math.floor(x)) + ", " + (int) (Math.floor(z)) + ')';
-    }
-
-    public static void main(String[] args) {
-        System.out.println(new Position(2268, 711).angleTo(new Position(1752, 568)));
     }
 }

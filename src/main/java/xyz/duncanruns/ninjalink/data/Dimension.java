@@ -11,14 +11,14 @@ public enum Dimension {
         this.displayName = displayName;
     }
 
-    public double getCoordinateScale() {
-        return coordinateScale;
-    }
-
     public static Dimension fromBooleanParams(boolean isInOverworld, boolean isInNether) {
         if (isInOverworld) return OVERWORLD;
         else if (isInNether) return NETHER;
         return END;
+    }
+
+    public double getCoordinateScale() {
+        return coordinateScale;
     }
 
     @Override

@@ -79,6 +79,8 @@ public class NinjaLinkPrompt extends JDialog {
         }
         onUpdate();
         pack();
+        revalidate();
+        setSize((int) (getWidth() * 1.5), getHeight());
         if (owner == null) return;
         setLocation(owner.getX() + (owner.getWidth() / 2) - (this.getWidth() / 2), owner.getY());
 

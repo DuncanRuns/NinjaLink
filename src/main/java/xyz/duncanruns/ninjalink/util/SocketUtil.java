@@ -113,11 +113,17 @@ public class SocketUtil {
     }
 
     public static String receiveStringWithLength(Socket socket) throws IOException {
+        return receiveStringWithLength(socket, 4096);
+    }
+
+    public static String receiveStringWithLength(Socket socket, int maxLength) throws IOException {
         InputStream inputStream = socket.getInputStream();
         byte[] bytes = SocketUtil.readSpecific(inputStream, 4);
         if (bytes == null) return null;
         int length = SocketUtil.bytesToInt(bytes);
         if (length == 0) return "";
+        else if (length > maxLength)
+            throw new IOException("String length of " + length + " exceeds max length (" + maxLength + ")!");
         bytes = SocketUtil.readSpecific(inputStream, length);
         if (bytes == null) return null;
         return new String(bytes, StandardCharsets.UTF_8);

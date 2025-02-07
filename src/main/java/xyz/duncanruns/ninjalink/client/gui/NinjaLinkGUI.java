@@ -2,7 +2,7 @@ package xyz.duncanruns.ninjalink.client.gui;
 
 import com.intellij.uiDesigner.core.Spacer;
 import org.jetbrains.annotations.NotNull;
-import xyz.duncanruns.ninjalink.client.NinjabrainBotConnector;
+import xyz.duncanruns.ninjalink.client.NinjabrainBotConnector.ConnectionState;
 import xyz.duncanruns.ninjalink.data.Dimension;
 import xyz.duncanruns.ninjalink.data.*;
 import xyz.duncanruns.ninjalink.util.AngleUtil;
@@ -26,12 +26,11 @@ import java.util.regex.Pattern;
 public class NinjaLinkGUI extends JFrame {
     private final JTable playerTable = new JTable();
     private final JTable strongholdTable = new JTable();
-    private final JLabel ninjabrainBotLabel = new JLabel("Not connected to Ninjabrain Bot");
     private boolean discarded = false;
     private static final boolean CALCULATE_VIEWER_ANGLE_AND_DIST = false;
+    private final JLabel waitingForDataLabel;
 
-    private final JLabel strongholdsLabel;
-    private final JLabel playersLabel;
+    private static ConnectionState nBotState = ConnectionState.CLOSED;
 
     public NinjaLinkGUI(Runnable onClose, KeyListener keyListener) {
         super();
@@ -45,16 +44,12 @@ public class NinjaLinkGUI extends JFrame {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(gridBagLayout);
         mainPanel.setBorder(BorderFactory.createEmptyBorder(0, paddingSize, paddingSize, paddingSize));
-        ninjabrainBotLabel.setHorizontalAlignment(SwingConstants.CENTER);
         setContentPane(mainPanel);
-        mainPanel.add(ninjabrainBotLabel, constraints);
-        playersLabel = new JLabel("Players");
-        playersLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        mainPanel.add(playersLabel, constraints);
+        waitingForDataLabel = new JLabel("Waiting for data...");
+        waitingForDataLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        mainPanel.add(waitingForDataLabel, constraints);
+        waitingForDataLabel.setVisible(false);
         mainPanel.add(playerTable, constraints);
-        strongholdsLabel = new JLabel("Strongholds");
-        strongholdsLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        mainPanel.add(strongholdsLabel, constraints);
         mainPanel.add(strongholdTable, constraints);
         constraints.weighty = 1;
         mainPanel.add(new Spacer(), constraints);
@@ -181,14 +176,12 @@ public class NinjaLinkGUI extends JFrame {
         strongholdTable.getColumnModel().getColumn(4).setCellRenderer(angleCellRenderer);
 
         if (totalPlayers.get() == 0) {
-            strongholdsLabel.setVisible(false);
+            waitingForDataLabel.setVisible(true);
             strongholdTable.setVisible(false);
             playerTable.setVisible(false);
-            playersLabel.setText("Waiting for data...");
         } else {
-            playersLabel.setText("Players");
+            waitingForDataLabel.setVisible(false);
             playerTable.setVisible(true);
-            strongholdsLabel.setVisible(totalStrongholds.get() > 0);
             strongholdTable.setVisible(totalStrongholds.get() > 0);
         }
 
@@ -212,7 +205,7 @@ public class NinjaLinkGUI extends JFrame {
         else if (requiredHeight != currentHeight) setSize(getWidth(), requiredHeight);
     }
 
-    public void setNinjabrainBotConnectionState(NinjabrainBotConnector.ConnectionState connectionState) {
+    public void setNinjabrainBotConnectionState(ConnectionState connectionState) {
         if (!SwingUtilities.isEventDispatchThread()) {
             try {
                 SwingUtilities.invokeAndWait(() -> setNinjabrainBotConnectionState(connectionState));
@@ -222,19 +215,17 @@ public class NinjaLinkGUI extends JFrame {
             return;
         }
 
-        switch (connectionState) {
-            case CLOSED:
-                ninjabrainBotLabel.setText("Not connected to Ninjabrain Bot");
-                break;
-            case CONNECTED:
-                ninjabrainBotLabel.setText("Connected to Ninjabrain Bot");
-                break;
-        }
+        this.nBotState = connectionState;
+        updateTitle();
     }
 
     public void setPinned(boolean b) {
         setAlwaysOnTop(b);
-        setTitle("NinjaLink" + (b ? " \uD83D\uDCCC" : ""));
+        updateTitle();
+    }
+
+    private void updateTitle() {
+        setTitle("NinjaLink" + (isAlwaysOnTop() ? " | \uD83D\uDCCC" : "") + " | NbBot: " + (nBotState == ConnectionState.CONNECTED ? "✔" : "❌"));
     }
 
     public void discard() {

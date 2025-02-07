@@ -278,7 +278,7 @@ public final class NinjaLinkClient {
         while (true) {
             String data;
             try {
-                data = SocketUtil.receiveStringWithLength(socket);
+                data = SocketUtil.receiveStringWithLength(socket, 32768); // Group data is possibly fairly large
                 if (data == null) throw new IOException("No string received from ");
             } catch (IOException e) {
                 if (closing) return;

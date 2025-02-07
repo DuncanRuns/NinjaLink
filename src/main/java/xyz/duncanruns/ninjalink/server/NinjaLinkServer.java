@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public final class NinjaLinkServer {
 
@@ -65,7 +66,8 @@ public final class NinjaLinkServer {
                 return;
             }
 
-            if (useRooms) rooms.removeIf(Room::isEmpty);
+            if (useRooms)
+                rooms.stream().filter(Room::isEmpty).peek(Room::close).collect(Collectors.toList()).forEach(rooms::remove);
 
             for (Room room : rooms) {
                 Room.AcceptType acceptType = room.checkAccept(client, nickname, roomName, roomPass);

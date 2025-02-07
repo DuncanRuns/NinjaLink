@@ -12,6 +12,8 @@ import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.*;
 
+import static xyz.duncanruns.ninjalink.Constants.WATCHER_NICKNAME;
+
 public class NinjaLinkPrompt extends JDialog {
     private JPanel contentPane;
     private JButton buttonOK;
@@ -123,7 +125,7 @@ public class NinjaLinkPrompt extends JDialog {
     }
 
     private void onUpdate() {
-        buttonOK.setEnabled(!(addressBox.getText().trim().isEmpty() || nicknameBox.getText().trim().isEmpty()));
+        buttonOK.setEnabled(!(addressBox.getText().trim().isEmpty() || nicknameBox.getText().trim().isEmpty() || nicknameBox.getText().trim().equals(WATCHER_NICKNAME)));
     }
 
     private void onOK() {

@@ -7,15 +7,19 @@ import xyz.duncanruns.ninjalink.util.SocketUtil;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static xyz.duncanruns.ninjalink.Constants.WATCHER_NICKNAME;
 import static xyz.duncanruns.ninjalink.server.NinjaLinkServer.rejectConnection;
 
 public class Room {
     private final String name;
     private final String password;
 
+    private final Set<Socket> watchers = new HashSet<>();
     private final Map<String, Socket> userMap = new ConcurrentHashMap<>();
     private final NinjaLinkGroupData groupData = new NinjaLinkGroupData();
 
@@ -55,6 +59,7 @@ public class Room {
 
     private synchronized void updateAllUsers() {
         userMap.forEach(this::sendGroupDataToClient);
+        watchers.forEach(this::sendGroupDataToWatcher);
     }
 
     private boolean sendGroupDataToClient(String name, Socket client) {
@@ -65,6 +70,21 @@ public class Room {
             onClientError(client, "Failed to communicate: " + e, e, name);
             return false;
         }
+    }
+
+    private boolean sendGroupDataToWatcher(Socket client) {
+        try {
+            SocketUtil.sendStringWithLength(client, groupData.toJson());
+            return true;
+        } catch (Exception e) {
+            removeWatcher(client);
+            return false;
+        }
+    }
+
+    private void removeWatcher(Socket client) {
+        SocketUtil.carelesslyClose(client);
+        watchers.remove(client);
     }
 
     private void userReceiveLoop(String name, Socket client) {
@@ -93,6 +113,24 @@ public class Room {
         }
     }
 
+    private void watcherReceiveLoop(Socket client) {
+        while (true) {
+            String data;
+            try {
+                data = SocketUtil.receiveStringWithLength(client);
+                if (data == null) throw new IOException("No string received");
+            } catch (IOException e) {
+                removeWatcher(client);
+                return;
+            }
+
+            if (data.equals("D" /*Disconnect*/)) {
+                removeWatcher(client);
+                return;
+            }
+        }
+    }
+
     public synchronized AcceptType checkAccept(Socket client, String nickname, String roomName, String roomPass) throws IOException {
         if (!(this.name.isEmpty() || roomName.equals(this.name))) {
             return AcceptType.WRONG_ROOM;
@@ -110,10 +148,23 @@ public class Room {
         SocketUtil.sendStringWithLength(client, !roomName.isEmpty() && this.name.isEmpty() ? "Warning: this server does not use custom rooms, anyone using this address will be put into the same room. To skip this message next time, leave the room name and password blank." : ""); // Displayed Server Message
 
 
-        userMap.put(nickname, client);
-        if (!sendGroupDataToClient(nickname, client)) return AcceptType.FAILED;
-        System.out.println("User " + nickname + " joined room " + getPrintedRoomName());
-        new Thread(() -> userReceiveLoop(nickname, client)).start();
+        if (nickname.equals(WATCHER_NICKNAME)) {
+            watchers.add(client);
+            if (!sendGroupDataToWatcher(client)) {
+                removeWatcher(client);
+                return AcceptType.FAILED;
+            }
+            new Thread(() -> watcherReceiveLoop(client)).start();
+            System.out.println("A watcher joined room " + getPrintedRoomName());
+        } else {
+            userMap.put(nickname, client);
+            if (!sendGroupDataToClient(nickname, client)) {
+                removeUser(nickname, client);
+                return AcceptType.FAILED;
+            }
+            new Thread(() -> userReceiveLoop(nickname, client)).start();
+            System.out.println("User " + nickname + " joined room " + getPrintedRoomName());
+        }
         return AcceptType.ACCEPTED;
     }
 
@@ -123,6 +174,13 @@ public class Room {
 
     public boolean isEmpty() {
         return userMap.isEmpty();
+    }
+
+    public synchronized void close() {
+        userMap.forEach((s, socket) -> SocketUtil.carelesslyClose(socket));
+        userMap.clear();
+        watchers.forEach(SocketUtil::carelesslyClose);
+        watchers.clear();
     }
 
     public enum AcceptType {

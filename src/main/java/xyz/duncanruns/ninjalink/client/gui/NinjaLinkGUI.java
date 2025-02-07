@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 public class NinjaLinkGUI extends JFrame {
     private final JTable playerTable = new JTable();
     private final JTable strongholdTable = new JTable();
+    private final Spacer strongholdSpacer = new Spacer();
     private boolean discarded = false;
     private static final boolean CALCULATE_VIEWER_ANGLE_AND_DIST = false;
     private final JLabel waitingForDataLabel;
@@ -50,6 +51,7 @@ public class NinjaLinkGUI extends JFrame {
         mainPanel.add(waitingForDataLabel, constraints);
         waitingForDataLabel.setVisible(false);
         mainPanel.add(playerTable, constraints);
+        mainPanel.add(strongholdSpacer, constraints);
         mainPanel.add(strongholdTable, constraints);
         constraints.weighty = 1;
         mainPanel.add(new Spacer(), constraints);
@@ -177,11 +179,13 @@ public class NinjaLinkGUI extends JFrame {
 
         if (totalPlayers.get() == 0) {
             waitingForDataLabel.setVisible(true);
+            strongholdSpacer.setVisible(false);
             strongholdTable.setVisible(false);
             playerTable.setVisible(false);
         } else {
             waitingForDataLabel.setVisible(false);
             playerTable.setVisible(true);
+            strongholdSpacer.setVisible(totalStrongholds.get() > 0);
             strongholdTable.setVisible(totalStrongholds.get() > 0);
         }
 

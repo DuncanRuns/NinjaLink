@@ -14,11 +14,11 @@ public class JoinRequestResponse {
         this.message = message;
     }
 
-    public String toJson() {
-        return GSON.toJson(this);
-    }
-
     public static JoinRequestResponse fromJson(String string) throws JsonSyntaxException {
         return GSON.fromJson(string, JoinRequestResponse.class);
+    }
+
+    public String toJson() {
+        return GSON.toJson(this);
     }
 }

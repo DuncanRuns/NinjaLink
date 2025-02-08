@@ -219,7 +219,7 @@ public class NinjaLinkGUI extends JFrame {
             return;
         }
 
-        this.nBotState = connectionState;
+        nBotState = connectionState;
         updateTitle();
     }
 

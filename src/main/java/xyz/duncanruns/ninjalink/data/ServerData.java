@@ -30,12 +30,12 @@ public class ServerData {
         this.message = message;
     }
 
-    public String toJson() {
-        return GSON.toJson(this);
-    }
-
     public static ServerData fromJson(String string) throws JsonSyntaxException {
         return GSON.fromJson(string, ServerData.class);
+    }
+
+    public String toJson() {
+        return GSON.toJson(this);
     }
 
     public enum Type {

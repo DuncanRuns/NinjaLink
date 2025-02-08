@@ -27,12 +27,12 @@ public class ClientData {
         this.ninjabrainBotEventData = ninjabrainBotEventData;
     }
 
-    public String toJson() {
-        return GSON.toJson(this);
-    }
-
     public static ClientData fromJson(String string) throws JsonSyntaxException {
         return GSON.fromJson(string, ClientData.class);
+    }
+
+    public String toJson() {
+        return GSON.toJson(this);
     }
 
     public enum Type {

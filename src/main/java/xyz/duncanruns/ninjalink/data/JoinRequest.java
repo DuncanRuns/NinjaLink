@@ -7,6 +7,12 @@ import org.jetbrains.annotations.Nullable;
 public class JoinRequest {
     private static final Gson GSON = new Gson();
 
+    @Nullable
+    public final String nickname;
+    public final String roomName;
+    public final String roomPass;
+    public final int protocolVersion;
+
     public JoinRequest(@Nullable String nickname, String roomName, String roomPass, int protocolVersion) {
         this.nickname = nickname == null ? null : nickname.trim();
         this.roomName = roomName;
@@ -14,11 +20,9 @@ public class JoinRequest {
         this.protocolVersion = protocolVersion;
     }
 
-    @Nullable
-    public final String nickname;
-    public final String roomName;
-    public final String roomPass;
-    public final int protocolVersion;
+    public static JoinRequest fromJson(String string) throws JsonSyntaxException {
+        return GSON.fromJson(string, JoinRequest.class);
+    }
 
     public boolean isWatcher() {
         return nickname == null;
@@ -26,9 +30,5 @@ public class JoinRequest {
 
     public String toJson() {
         return GSON.toJson(this);
-    }
-
-    public static JoinRequest fromJson(String string) throws JsonSyntaxException {
-        return GSON.fromJson(string, JoinRequest.class);
     }
 }

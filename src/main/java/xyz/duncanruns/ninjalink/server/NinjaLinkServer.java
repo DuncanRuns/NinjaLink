@@ -1,5 +1,8 @@
 package xyz.duncanruns.ninjalink.server;
 
+import xyz.duncanruns.ninjalink.Constants;
+import xyz.duncanruns.ninjalink.data.JoinRequest;
+import xyz.duncanruns.ninjalink.data.JoinRequestResponse;
 import xyz.duncanruns.ninjalink.util.SocketUtil;
 
 import java.io.IOException;
@@ -42,26 +45,22 @@ public final class NinjaLinkServer {
 
     private static synchronized void acceptNewClient(Socket client) {
         try {
-            String nickname = SocketUtil.receiveStringWithLength(client);
-            if (nickname == null) {
-                SocketUtil.carelesslyClose(client);
+            String joinRequestStr = SocketUtil.receiveStringWithLength(client);
+            if (joinRequestStr == null) throw new IOException("Failed to communicate with new client.");
+            JoinRequest joinRequest;
+            try {
+                joinRequest = JoinRequest.fromJson(joinRequestStr);
+            } catch (Exception e) {
+                rejectConnection(client, "Invalid data or incorrect version of NinjaLink, please use version " + Constants.VERSION + " or higher.");
                 return;
             }
-            nickname = nickname.trim();
-            String roomName = SocketUtil.receiveStringWithLength(client);
-            if (roomName == null) {
-                SocketUtil.carelesslyClose(client);
-                return;
-            }
-            roomName = roomName.trim();
-            String roomPass = SocketUtil.receiveStringWithLength(client);
-            if (roomPass == null) {
-                SocketUtil.carelesslyClose(client);
-                return;
-            }
-            roomPass = roomPass.trim();
 
-            if (nickname.trim().isEmpty()) {
+            if (!Constants.ACCEPTED_PROTOCOLS.contains(joinRequest.protocolVersion)) {
+                rejectConnection(client, "Invalid protocol version (" + joinRequest.protocolVersion + "), please update NinjaLink to version " + Constants.VERSION + " or higher.");
+                return;
+            }
+
+            if (!joinRequest.isWatcher() && joinRequest.nickname.trim().isEmpty()) {
                 rejectConnection(client, "Name cannot be empty!");
                 return;
             }
@@ -70,14 +69,15 @@ public final class NinjaLinkServer {
                 rooms.stream().filter(Room::isEmpty).peek(Room::close).collect(Collectors.toList()).forEach(rooms::remove);
 
             for (Room room : rooms) {
-                Room.AcceptType acceptType = room.checkAccept(client, nickname, roomName, roomPass);
+                Room.AcceptType acceptType = room.checkAccept(client, joinRequest);
                 if (acceptType != Room.AcceptType.WRONG_ROOM) return;
             }
 
+            String roomName = joinRequest.roomName;
             if (useRooms && !roomName.isEmpty()) {
-                Room room = new Room(roomName, roomPass);
+                Room room = new Room(roomName, joinRequest.roomPass);
                 rooms.add(room);
-                Room.AcceptType acceptType = room.checkAccept(client, nickname, roomName, roomPass);
+                Room.AcceptType acceptType = room.checkAccept(client, joinRequest);
                 if (acceptType != Room.AcceptType.ACCEPTED) rooms.remove(room);
                 return;
             }
@@ -86,14 +86,14 @@ public final class NinjaLinkServer {
 
         } catch (Exception e) {
             System.out.println("Failed to accept " + client + " due to exception: " + e);
+            rejectConnection(client, "There was an error trying to the connection.");
             e.printStackTrace();
         }
     }
 
     public static void rejectConnection(Socket client, String msg) {
         try {
-            SocketUtil.sendStringWithLength(client, "R"); // Rejected
-            SocketUtil.sendStringWithLength(client, msg);
+            SocketUtil.sendStringWithLength(client, new JoinRequestResponse(false, msg).toJson());
         } catch (Exception ignored) {
         }
         SocketUtil.carelesslyClose(client);

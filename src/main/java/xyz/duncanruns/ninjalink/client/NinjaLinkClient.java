@@ -2,10 +2,10 @@ package xyz.duncanruns.ninjalink.client;
 
 import com.formdev.flatlaf.FlatDarkLaf;
 import org.jetbrains.annotations.NotNull;
+import xyz.duncanruns.ninjalink.Constants;
 import xyz.duncanruns.ninjalink.client.gui.NinjaLinkGUI;
 import xyz.duncanruns.ninjalink.client.gui.NinjaLinkPrompt;
-import xyz.duncanruns.ninjalink.data.NinjaLinkGroupData;
-import xyz.duncanruns.ninjalink.data.NinjabrainBotEventData;
+import xyz.duncanruns.ninjalink.data.*;
 import xyz.duncanruns.ninjalink.util.SocketUtil;
 
 import javax.swing.*;
@@ -16,9 +16,8 @@ import java.awt.event.KeyListener;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Optional;
+import java.util.Timer;
+import java.util.*;
 
 public final class NinjaLinkClient {
     private static NinjabrainBotEventData myData = NinjabrainBotEventData.empty();
@@ -91,6 +90,7 @@ public final class NinjaLinkClient {
             if (ninjaLinkGUI != null)
                 SwingUtilities.invokeAndWait(() -> JOptionPane.showMessageDialog(ninjaLinkGUI, "Failed to run client: " + e, "NinjaLink: Failed", JOptionPane.ERROR_MESSAGE));
             e.printStackTrace();
+            System.exit(0);
         }
     }
 
@@ -176,7 +176,7 @@ public final class NinjaLinkClient {
 
     private static void sendCarelessDisconnect(Socket socket) {
         try {
-            SocketUtil.sendStringWithLength(socket, "D");
+            SocketUtil.sendStringWithLength(socket, new ClientData(ClientData.Type.DISCONNECT).toJson());
         } catch (Exception ignored) {
         }
     }
@@ -188,7 +188,7 @@ public final class NinjaLinkClient {
             try {
                 System.out.println("Sending empty data to server...");
                 myData = NinjabrainBotEventData.empty();
-                SocketUtil.sendStringWithLength(socket, myData.toJson());
+                SocketUtil.sendStringWithLength(socket, new ClientData(ClientData.Type.CLEAR).toJson());
             } catch (Exception e) {
                 if (closing) return;
                 System.out.println("Error sending ninjabrain bot data: " + e);
@@ -206,7 +206,7 @@ public final class NinjaLinkClient {
         try {
             myData = NinjabrainBotEventData.fromJson(string);
             System.out.println("Sending to server...");
-            SocketUtil.sendStringWithLength(socket, string);
+            SocketUtil.sendStringWithLength(socket, new ClientData(myData).toJson());
         } catch (Exception e) {
             if (closing) return;
             System.out.println("Error sending ninjabrain bot data: " + e);
@@ -220,88 +220,91 @@ public final class NinjaLinkClient {
             socket = new Socket(ip, port);
         } catch (Exception e) {
             if (closing) return;
-            System.out.println("Failed to connect to server!");
             close("Failed to connect to server!");
             return;
         }
 
-        SocketUtil.sendStringWithLength(socket, ninjaLinkConfig.nickname);
-        SocketUtil.sendStringWithLength(socket, ninjaLinkConfig.roomName);
-        SocketUtil.sendStringWithLength(socket, ninjaLinkConfig.roomPass);
-        String response = SocketUtil.receiveStringWithLength(socket);
-        if (response == null) {
+        SocketUtil.sendStringWithLength(socket, new JoinRequest(ninjaLinkConfig.nickname, ninjaLinkConfig.roomName, ninjaLinkConfig.roomPass, Constants.PROTOCOL_VERSION).toJson());
+
+        String responseStr = SocketUtil.receiveStringWithLength(socket);
+        if (responseStr == null || responseStr.isEmpty()) {
             if (closing) return;
-            System.out.println("Failed to communicate with server.");
             close("Failed to communicate with server.");
             return;
         }
-        if (response.equals("R")) { // Rejected
-            response = SocketUtil.receiveStringWithLength(socket);
-            System.out.println("Rejected for reason: " + response);
-            if (response == null) {
-                if (closing) return;
-                System.out.println("Failed to communicate with server.");
-                close("Rejected connection, then failed to communicate with server.");
-            }
-            close("Rejected for reason: " + response);
-            return;
-        } else if (!response.equals("A")) { // Something that isn't accepted !?
+        JoinRequestResponse response;
+        try {
+            response = JoinRequestResponse.fromJson(responseStr);
+            if (response == null) throw new IOException("Empty response.");
+        } catch (Exception e) {
             if (closing) return;
-            System.out.println("Unexpected response: '" + response + "'");
-            close("Unexpected response: '" + response + "'");
+            close("Failed to parse server response.");
             return;
         }
 
-        response = SocketUtil.receiveStringWithLength(socket);
-        if (response == null) {
-            if (closing) return;
-            System.out.println("Failed to communicate with server.");
-            close("Rejected connection, then failed to communicate with server.");
+        if (!response.accepted) { // Rejected
+            close("Rejected for reason: " + response.message);
+            return;
         }
-        if (!response.isEmpty()) {
+
+        if (!response.message.isEmpty()) {
             if (ninjaLinkGUI == null) {
-                System.out.println("Message from server:\n" + response);
+                System.out.println("Message from server:\n" + response.message);
             } else {
-                JOptionPane.showMessageDialog(ninjaLinkGUI, response, "NinjaLink: Server Message", JOptionPane.INFORMATION_MESSAGE);
+                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(ninjaLinkGUI, response.message, "NinjaLink: Server Message", JOptionPane.INFORMATION_MESSAGE));
             }
         }
 
         System.out.println("Connection accepted!");
 
         ninjabrainBot = new NinjabrainBotConnector(NinjaLinkClient::onNBotEvent, NinjaLinkClient::onNBotConnectionStateChange);
-
         ninjabrainBot.start();
+
+        startPingTimer();
+
         receiveLoop(socket);
+    }
+
+    private static void startPingTimer() {
+        new Timer("Ping-Timer", true).scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                ping();
+            }
+        }, 5_000, 5_000);
+    }
+
+    private static synchronized void ping() {
+        if (closing) return;
+        if (!socket.isConnected() || socket.isClosed()) return;
+        try {
+            SocketUtil.sendStringWithLength(socket, new ClientData(ClientData.Type.PING).toJson());
+        } catch (IOException e) {
+            close("Failed to ping server!");
+        }
     }
 
     private static void receiveLoop(Socket socket) {
         while (true) {
-            String data;
+            ServerData data;
             try {
-                data = SocketUtil.receiveStringWithLength(socket, 32768); // Group data is possibly fairly large
-                if (data == null) throw new IOException("No string received from ");
-            } catch (IOException e) {
-                if (closing) return;
-                System.out.println("Error during communication: " + e);
-                e.printStackTrace();
+                data = ServerData.fromJson(SocketUtil.receiveStringWithLength(socket, 32768 /*Group data is possibly fairly large*/));
+                if (data == null) throw new IOException("No data received from server");
+            } catch (Exception e) {
+                if (!closing) e.printStackTrace();
                 close("Error during communication: " + e);
                 return;
             }
 
-            if (data.equals("D" /*Disconnect*/)) {
-                System.out.println("Received disconnect request.");
-                close("Disconnected from server.");
+            if (data.type == ServerData.Type.DISCONNECT) {
+                close("Disconnected from server: " + data.message);
                 return;
-            }
-
-            try {
-                onNewGroupData(NinjaLinkGroupData.fromJson(data));
-            } catch (Exception e) {
-                if (closing) return;
-                System.out.println("Invalid data: " + e);
-                e.printStackTrace();
-                close("Invalid data: " + e);
-                return;
+            } else if (data.type == ServerData.Type.GROUP_DATA) {
+                if (data.ninjaLinkGroupData == null) {
+                    close("Expected group data but got null!");
+                    return;
+                }
+                onNewGroupData(data.ninjaLinkGroupData);
             }
         }
     }

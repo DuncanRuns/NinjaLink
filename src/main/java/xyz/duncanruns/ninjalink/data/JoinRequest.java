@@ -4,6 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import org.jetbrains.annotations.Nullable;
 
+import static xyz.duncanruns.ninjalink.Constants.NAME_PATTERN;
+import static xyz.duncanruns.ninjalink.Constants.PASSWORD_PATTERN;
+
 public class JoinRequest {
     private static final Gson GSON = new Gson();
 
@@ -30,5 +33,22 @@ public class JoinRequest {
 
     public String toJson() {
         return GSON.toJson(this);
+    }
+
+    /**
+     * Checks if the strings match their patterns and have valid combinations of emptiness
+     */
+    public boolean isValid() {
+        if (nickname != null && !NAME_PATTERN.matcher(nickname).matches()) return false;
+        if (roomName.isEmpty()) return roomPass.isEmpty();
+        if (!NAME_PATTERN.matcher(roomName).matches()) return false;
+        return PASSWORD_PATTERN.matcher(roomPass).matches();
+    }
+
+    /**
+     * Helper method to check if join request data will be valid
+     */
+    public static boolean isValidData(String nickname, String roomName, String roomPass) {
+        return new JoinRequest(nickname, roomName, roomPass, -1).isValid();
     }
 }

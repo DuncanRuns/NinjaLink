@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 import static xyz.duncanruns.ninjalink.server.NinjaLinkServer.rejectConnection;
 
@@ -52,10 +53,7 @@ public class Room {
     }
 
     private synchronized void socketTimedOut(Socket socket) {
-        try {
-            SocketUtil.sendStringWithLength(socket, new ServerData(ServerData.Type.DISCONNECT, "No data received in the last 15 seconds.").toJson());
-        } catch (IOException ignored) {
-        }
+        sendDisconnect(socket, "No data received in the last 15 seconds.");
         SocketUtil.carelesslyClose(socket);
         if (!userMap.containsValue(socket)) return;
         userMap.entrySet().stream().filter(e -> e.getValue() == socket).forEach(e -> removeUser(e.getKey(), e.getValue()));
@@ -79,12 +77,18 @@ public class Room {
     }
 
     private synchronized void removeUser(String name, Socket client) {
-        System.out.println("Removed user " + name);
+        System.out.println("Removed user " + name + " from room " + this.getPrintedRoomName());
         SocketUtil.carelesslyClose(userMap.remove(name));
         SocketUtil.carelesslyClose(client);
         pingMap.remove(client);
         clearPlayerDataForUser(name);
         updateAllUsers();
+        checkShouldClose();
+    }
+
+    private synchronized void checkShouldClose() {
+        if (closed) return;
+        if (userMap.isEmpty() && watchers.isEmpty()) close();
     }
 
     private synchronized void updateAllUsers() {
@@ -115,6 +119,7 @@ public class Room {
     private void removeWatcher(Socket client) {
         SocketUtil.carelesslyClose(client);
         watchers.remove(client);
+        checkShouldClose();
     }
 
     private void userReceiveLoop(String name, Socket client) {
@@ -123,7 +128,6 @@ public class Room {
                 ClientData data = ClientData.fromJson(SocketUtil.receiveStringWithLength(client));
                 if (data == null) throw new IOException("Failed to communicate with client.");
 
-                System.out.println("Ping!");
                 pingMap.put(client, System.currentTimeMillis());
 
                 if (data.type == ClientData.Type.DISCONNECT) {
@@ -169,7 +173,7 @@ public class Room {
     public synchronized AcceptType checkAccept(Socket client, JoinRequest request) throws IOException {
         if (closed) throw new IllegalStateException("Connection attempt to a closed room.");
 
-        if (!(this.name.isEmpty() || request.roomName.equals(this.name))) {
+        if (!(this.name.isEmpty() || request.roomName.equalsIgnoreCase(this.name))) {
             return AcceptType.WRONG_ROOM;
         }
         if (!(this.password.isEmpty() || request.roomPass.equals(this.password))) {
@@ -217,11 +221,39 @@ public class Room {
     }
 
     public synchronized void close() {
+        if (closed) return;
         closed = true;
-        userMap.forEach((s, socket) -> SocketUtil.carelesslyClose(socket));
+        System.out.println("Room " + this.getPrintedRoomName() + " closing...");
+        Stream.concat(userMap.values().stream(), watchers.stream()).forEach(socket -> {
+            sendDisconnect(socket, "Room or server has been closed.");
+            SocketUtil.carelesslyClose(socket);
+        });
         userMap.clear();
-        watchers.forEach(SocketUtil::carelesslyClose);
         watchers.clear();
+    }
+
+    public synchronized boolean tryKick(String nickname) {
+        nickname = userMap.keySet().stream().filter(nickname::equalsIgnoreCase).findAny().orElse(nickname);
+        Socket socket = userMap.getOrDefault(nickname, null);
+        if (socket == null) return false;
+        sendDisconnect(socket, "You were kicked from the server!");
+        removeUser(nickname, socket);
+        return true;
+    }
+
+    private static void sendDisconnect(Socket socket, String message) {
+        try {
+            SocketUtil.sendStringWithLength(socket, new ServerData(ServerData.Type.DISCONNECT, message).toJson());
+        } catch (IOException ignored) {
+        }
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public boolean isClosed() {
+        return closed;
     }
 
     public enum AcceptType {
@@ -229,5 +261,14 @@ public class Room {
         ACCEPTED,
         REJECTED,
         FAILED
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder out = new StringBuilder(this.getPrintedRoomName());
+        if (userMap.isEmpty() && watchers.isEmpty()) out.append(" (empty)");
+        userMap.keySet().forEach(name -> out.append("\n- ").append(name));
+        if (!watchers.isEmpty()) out.append("\n- ").append(watchers.size()).append(" Watchers");
+        return out.toString();
     }
 }

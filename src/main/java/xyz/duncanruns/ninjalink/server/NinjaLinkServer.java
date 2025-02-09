@@ -10,6 +10,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -17,6 +18,7 @@ public final class NinjaLinkServer {
 
     private static final Set<Room> rooms = new HashSet<>();
     private static boolean useRooms;
+    private static ServerSocket serverSocket;
 
     private NinjaLinkServer() {
     }
@@ -24,23 +26,90 @@ public final class NinjaLinkServer {
     public static void main(String[] args) throws IOException {
         int port = 52534;
         if (args.length > 0) port = Integer.parseInt(args[0].equalsIgnoreCase("default") ? "52534" : args[0]);
-        useRooms = args.length > 1 && Arrays.stream(args).skip(1).anyMatch(s -> s.toLowerCase().contains("rooms"));
+        useRooms = Arrays.stream(args).skip(1).anyMatch(s -> s.toLowerCase().contains("rooms"));
         if (!useRooms) rooms.add(new Room());
 
         if (!SocketUtil.isPortFree(port)) {
             System.out.printf("Port %d is already in use!\n", port);
         }
 
-        ServerSocket serverSocket = new ServerSocket(port);
+        serverSocket = new ServerSocket(port);
 
         if (!serverSocket.isBound()) {
             System.out.println("Server socket did not bind!");
             return;
         }
 
-        while (serverSocket.isBound()) {
-            acceptNewClient(serverSocket.accept());
+        Thread inputThread = new Thread(NinjaLinkServer::inputLoop);
+        inputThread.setDaemon(true);
+        inputThread.start();
+
+        while (!serverSocket.isClosed()) {
+            try {
+                Socket client = serverSocket.accept();
+                acceptNewClient(client);
+            } catch (Exception e) {
+                if (serverSocket.isClosed()) return;
+                throw e;
+            }
         }
+    }
+
+    private static void inputLoop() {
+        while (!serverSocket.isClosed()) {
+            Scanner scanner = new Scanner(System.in);
+            String line = scanner.nextLine();
+
+            String[] args = line.split("[ \\t]+");
+
+            runCommand(args);
+        }
+    }
+
+    public static synchronized void runCommand(String[] args) {
+        switch (args[0]) {
+            case "list":
+                listCommand();
+                break;
+            case "kick":
+                kickCommand(withoutFirstArg(args));
+                break;
+            case "stop":
+                System.out.println("Stopping server...");
+                close();
+                break;
+            default:
+                System.out.println("Invalid command!");
+                break;
+        }
+    }
+
+    private static synchronized void kickCommand(String[] args) {
+        switch (args.length) {
+            case 1:
+                if (rooms.stream().noneMatch(room -> room.tryKick(args[0]))) {
+                    System.out.println("User " + args[0] + " not found!");
+                }
+                break;
+            case 2:
+                if (rooms.stream().filter(room -> room.getName().equalsIgnoreCase(args[1])).noneMatch(room -> room.tryKick(args[0]))) {
+                    System.out.println("User " + args[0] + " not found!");
+                }
+                break;
+            default:
+                System.out.println("Incorrect args! Usage: kick <nickname> or kick <nickname> <room name>");
+        }
+    }
+
+    private static synchronized void listCommand() {
+        clearEmptyOrClosedRooms();
+        if (rooms.isEmpty()) System.out.println("No rooms!");
+        rooms.forEach(System.out::println);
+    }
+
+    private static synchronized void close() {
+        SocketUtil.carelesslyClose(serverSocket);
+        rooms.forEach(Room::close);
     }
 
     private static synchronized void acceptNewClient(Socket client) {
@@ -60,13 +129,17 @@ public final class NinjaLinkServer {
                 return;
             }
 
+            if (!joinRequest.isValid()) {
+                rejectConnection(client, "Invalid join request!");
+                return;
+            }
+
             if (!joinRequest.isWatcher() && joinRequest.nickname.trim().isEmpty()) {
                 rejectConnection(client, "Name cannot be empty!");
                 return;
             }
 
-            if (useRooms)
-                rooms.stream().filter(Room::isEmpty).peek(Room::close).collect(Collectors.toList()).forEach(rooms::remove);
+            clearEmptyOrClosedRooms();
 
             for (Room room : rooms) {
                 Room.AcceptType acceptType = room.checkAccept(client, joinRequest);
@@ -91,11 +164,20 @@ public final class NinjaLinkServer {
         }
     }
 
+    private static synchronized void clearEmptyOrClosedRooms() {
+        if (useRooms)
+            rooms.stream().filter(room -> room.isClosed() || room.isEmpty()).peek(Room::close).collect(Collectors.toList()).forEach(rooms::remove);
+    }
+
     public static void rejectConnection(Socket client, String msg) {
         try {
             SocketUtil.sendStringWithLength(client, new JoinRequestResponse(false, msg).toJson());
         } catch (Exception ignored) {
         }
         SocketUtil.carelesslyClose(client);
+    }
+
+    public static String[] withoutFirstArg(String[] args) {
+        return Arrays.copyOfRange(args, Math.min(1, args.length), args.length);
     }
 }

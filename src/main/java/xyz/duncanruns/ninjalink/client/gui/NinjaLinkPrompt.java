@@ -5,6 +5,7 @@ import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
 import xyz.duncanruns.ninjalink.client.NinjaLinkConfig;
+import xyz.duncanruns.ninjalink.data.JoinRequest;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -123,7 +124,12 @@ public class NinjaLinkPrompt extends JDialog {
     }
 
     private void onUpdate() {
-        buttonOK.setEnabled(!(addressBox.getText().trim().isEmpty() || nicknameBox.getText().trim().isEmpty()));
+        buttonOK.setEnabled(shouldEnableOkButton());
+    }
+
+    private boolean shouldEnableOkButton() {
+        if (getAddress().isEmpty()) return false;
+        return JoinRequest.isValidData(getNickname(), getRoomName(), getRoomPass());
     }
 
     private void onOK() {

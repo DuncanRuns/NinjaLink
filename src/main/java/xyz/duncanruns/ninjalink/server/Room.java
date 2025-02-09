@@ -159,16 +159,16 @@ public class Room {
 
     private void watcherReceiveLoop(Connection client) {
         while (!closed) {
-            String data;
+            ClientData data;
             try {
-                data = client.receiveString();
+                data = ClientData.fromJson(client.receiveString());
                 if (data == null) throw new IOException("No string received");
-            } catch (IOException e) {
+            } catch (Exception e) {
                 removeWatcher(client);
                 return;
             }
 
-            if (data.equals("D" /*Disconnect*/)) {
+            if (data.type == ClientData.Type.DISCONNECT) {
                 removeWatcher(client);
                 return;
             }

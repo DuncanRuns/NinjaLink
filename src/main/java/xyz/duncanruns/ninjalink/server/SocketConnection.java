@@ -23,11 +23,6 @@ public class SocketConnection implements Connection {
     }
 
     @Override
-    public String receiveString(int maxLength) throws IOException {
-        return SocketUtil.receiveStringWithLength(socket, maxLength);
-    }
-
-    @Override
     public void close() {
         SocketUtil.carelesslyClose(socket);
     }

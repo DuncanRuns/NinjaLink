@@ -7,7 +7,5 @@ public interface Connection {
 
     String receiveString() throws IOException;
 
-    String receiveString(int maxLength) throws IOException;
-
     void close();
 }

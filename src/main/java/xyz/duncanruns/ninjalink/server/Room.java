@@ -222,7 +222,7 @@ public class Room {
     }
 
     public boolean isEmpty() {
-        return userMap.isEmpty();
+        return userMap.isEmpty() && watchers.isEmpty();
     }
 
     public synchronized void close() {

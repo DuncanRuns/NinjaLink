@@ -36,6 +36,13 @@ public class Room {
         checkPingsThread.start();
     }
 
+    private static void sendDisconnect(Socket socket, String message) {
+        try {
+            SocketUtil.sendStringWithLength(socket, new ServerData(ServerData.Type.DISCONNECT, message).toJson());
+        } catch (IOException ignored) {
+        }
+    }
+
     private void checkPingsLoop() {
         while (!closed) {
             synchronized (this) {
@@ -241,26 +248,12 @@ public class Room {
         return true;
     }
 
-    private static void sendDisconnect(Socket socket, String message) {
-        try {
-            SocketUtil.sendStringWithLength(socket, new ServerData(ServerData.Type.DISCONNECT, message).toJson());
-        } catch (IOException ignored) {
-        }
-    }
-
     public String getName() {
         return name;
     }
 
     public boolean isClosed() {
         return closed;
-    }
-
-    public enum AcceptType {
-        WRONG_ROOM,
-        ACCEPTED,
-        REJECTED,
-        FAILED
     }
 
     @Override
@@ -270,5 +263,12 @@ public class Room {
         userMap.keySet().forEach(name -> out.append("\n- ").append(name));
         if (!watchers.isEmpty()) out.append("\n- ").append(watchers.size()).append(" Watchers");
         return out.toString();
+    }
+
+    public enum AcceptType {
+        WRONG_ROOM,
+        ACCEPTED,
+        REJECTED,
+        FAILED
     }
 }

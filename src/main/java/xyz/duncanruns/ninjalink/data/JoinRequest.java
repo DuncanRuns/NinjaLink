@@ -27,6 +27,13 @@ public class JoinRequest {
         return GSON.fromJson(string, JoinRequest.class);
     }
 
+    /**
+     * Helper method to check if join request data will be valid
+     */
+    public static boolean isValidData(String nickname, String roomName, String roomPass) {
+        return new JoinRequest(nickname, roomName, roomPass, -1).isValid();
+    }
+
     public boolean isWatcher() {
         return nickname == null;
     }
@@ -43,12 +50,5 @@ public class JoinRequest {
         if (roomName.isEmpty()) return roomPass.isEmpty();
         if (!NAME_PATTERN.matcher(roomName).matches()) return false;
         return PASSWORD_PATTERN.matcher(roomPass).matches();
-    }
-
-    /**
-     * Helper method to check if join request data will be valid
-     */
-    public static boolean isValidData(String nickname, String roomName, String roomPass) {
-        return new JoinRequest(nickname, roomName, roomPass, -1).isValid();
     }
 }

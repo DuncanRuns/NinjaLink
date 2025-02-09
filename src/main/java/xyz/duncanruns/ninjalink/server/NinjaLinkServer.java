@@ -129,6 +129,11 @@ public final class NinjaLinkServer {
     private static synchronized void close() {
         SocketUtil.carelesslyClose(serverSocket);
         rooms.forEach(Room::close);
+        try {
+            if (ninjaLinkWSS != null) ninjaLinkWSS.stop(5000, "NinjaLink Server closing");
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static synchronized void acceptNewClient(Connection client) {

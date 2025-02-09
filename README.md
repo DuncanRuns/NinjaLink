@@ -45,5 +45,9 @@ jar. You can also specify a custom port for the NinjaLink server, for example
 `java -jar NinjaLink-<version>.jar server 8888`. The default port is `52534`.
 
 By default, your hosted server will not have rooms, and will have a single default room that every user will be
-redirected to. You can host a rooms server by adding the `rooms` argument, for example
-`java -jar NinjaLink-<version>.jar server default rooms` (`default` meaning default port).
+redirected to. You can host a rooms server by adding the `rooms` argument anywhere after the port argument, for example
+`java -jar NinjaLink-<version>.jar server default rooms` (`default` meaning default port number).
+
+By default, your hosted server will not open a websocket server. You can open one by adding the `ws` argument anywhere
+after the regular socket's port, you can also specify a custom websocket port, e.g. `ws:52535` will open the websocket
+server with port 52535.

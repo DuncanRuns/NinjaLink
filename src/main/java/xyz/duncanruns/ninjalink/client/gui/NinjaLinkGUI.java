@@ -30,6 +30,7 @@ public class NinjaLinkGUI extends JFrame {
     private boolean discarded = false;
     private static final boolean CALCULATE_VIEWER_ANGLE_AND_DIST = false;
     private final JLabel waitingForDataLabel;
+    private int paddingSize;
 
     private static ConnectionState nBotState = ConnectionState.CLOSED;
 
@@ -37,7 +38,7 @@ public class NinjaLinkGUI extends JFrame {
         super();
         GridBagLayout gridBagLayout = new GridBagLayout();
         GridBagConstraints constraints = new GridBagConstraints();
-        int paddingSize = UIManager.getFont("defaultFont").getSize() / 2;
+        paddingSize = UIManager.getFont("defaultFont").getSize() / 2;
         constraints.ipady = paddingSize;
         constraints.gridx = 0;
         constraints.weightx = 1;
@@ -198,9 +199,9 @@ public class NinjaLinkGUI extends JFrame {
 
         Insets insets = getInsets();
         java.awt.Dimension contentPref = contentPane.getPreferredSize();
-        int requiredHeight = contentPref.height + insets.top + insets.bottom + 30;
+        int requiredHeight = contentPref.height + insets.top + insets.bottom + paddingSize + 24;
         int currentHeight = getHeight();
-        int requiredWidth = contentPref.width + insets.right + insets.left + 30;
+        int requiredWidth = Math.max(38 * paddingSize + 110, contentPref.width + insets.right + insets.left + paddingSize + 24);
         int currentWidth = getWidth();
 
         setMinimumSize(new java.awt.Dimension(requiredWidth, requiredHeight));

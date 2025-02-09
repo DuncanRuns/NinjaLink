@@ -1,5 +1,8 @@
 package xyz.duncanruns.ninjalink.server;
 
+import org.java_websocket.WebSocket;
+import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.server.WebSocketServer;
 import xyz.duncanruns.ninjalink.Constants;
 import xyz.duncanruns.ninjalink.data.JoinRequest;
 import xyz.duncanruns.ninjalink.data.JoinRequestResponse;
@@ -10,6 +13,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public final class NinjaLinkServer {
@@ -17,6 +21,7 @@ public final class NinjaLinkServer {
     private static final Set<Room> rooms = new HashSet<>();
     private static boolean useRooms;
     private static ServerSocket serverSocket;
+    private static NinjaLinkWSS ninjaLinkWSS;
 
     private NinjaLinkServer() {
     }
@@ -24,18 +29,34 @@ public final class NinjaLinkServer {
     public static void main(String[] args) throws IOException {
         int port = 52534;
         if (args.length > 0) port = Integer.parseInt(args[0].equalsIgnoreCase("default") ? "52534" : args[0]);
-        useRooms = Arrays.stream(args).skip(1).anyMatch(s -> s.toLowerCase().contains("rooms"));
+        useRooms = Arrays.stream(args).skip(1).anyMatch("rooms"::equalsIgnoreCase);
+        Integer wsPort = Arrays.stream(args).skip(1).filter(s -> s.startsWith("ws:")).map(s -> s.split(":")[1]).map(s -> {
+            try {
+                return Integer.valueOf(s);
+            } catch (Exception e) {
+                return null;
+            }
+        }).filter(Objects::nonNull).findFirst().orElse(null);
+        if (wsPort == null) wsPort = Arrays.stream(args).skip(1).anyMatch("ws"::equalsIgnoreCase) ? 80 : null;
         if (!useRooms) rooms.add(new Room());
 
         if (!SocketUtil.isPortFree(port)) {
             System.out.printf("Port %d is already in use!\n", port);
         }
 
+        System.out.println("Starting socket...");
         serverSocket = new ServerSocket(port);
 
         if (!serverSocket.isBound()) {
             System.out.println("Server socket did not bind!");
             return;
+        }
+
+        if (wsPort != null) {
+            System.out.println("Starting websocket...");
+            ninjaLinkWSS = new NinjaLinkWSS(wsPort);
+            ninjaLinkWSS.setDaemon(true);
+            ninjaLinkWSS.start();
         }
 
         Thread inputThread = new Thread(NinjaLinkServer::inputLoop);
@@ -177,5 +198,44 @@ public final class NinjaLinkServer {
 
     public static String[] withoutFirstArg(String[] args) {
         return Arrays.copyOfRange(args, Math.min(1, args.length), args.length);
+    }
+
+    private static class NinjaLinkWSS extends WebSocketServer {
+
+        private final Map<WebSocket, WebSocketConnection> connections = new ConcurrentHashMap<>();
+
+        public NinjaLinkWSS(int port) {
+            super(new InetSocketAddress(port));
+        }
+
+        @Override
+        public void onOpen(WebSocket webSocket, ClientHandshake clientHandshake) {
+            WebSocketConnection connection = new WebSocketConnection(webSocket);
+            connections.put(webSocket, connection);
+            new Thread(() -> acceptNewClient(connection)).start();
+        }
+
+        @Override
+        public void onClose(WebSocket webSocket, int i, String s, boolean b) {
+            if (connections.containsKey(webSocket))
+                connections.remove(webSocket).queue("");
+        }
+
+        @Override
+        public void onMessage(WebSocket webSocket, String s) {
+            if (connections.containsKey(webSocket))
+                connections.get(webSocket).queue(s);
+        }
+
+        @Override
+        public void onError(WebSocket webSocket, Exception e) {
+            if (webSocket == null) return;
+            if (connections.containsKey(webSocket))
+                connections.remove(webSocket).queue("");
+        }
+
+        @Override
+        public void onStart() {
+        }
     }
 }

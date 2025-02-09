@@ -19,7 +19,7 @@ public class PlayerData {
     public static PlayerData fromNinjabrainBotEventData(NinjabrainBotEventData data) throws NullPointerException {
         boolean hasPlayerPosition = data.hasPlayerPosition();
         NinjabrainBotEventData.PlayerPositionDto playerPosition = data.playerPosition;
-        NinjabrainBotEventData.EyeThrowDto eyeThrow = data.eyeThrows.isEmpty() ? null : data.eyeThrows.get(0);
+        NinjabrainBotEventData.EyeThrowDto eyeThrow = data.eyeThrows.isEmpty() ? null : data.eyeThrows.get(data.eyeThrows.size() - 1);
         NinjabrainBotEventData.PredictionDto prediction = eyeThrow == null || data.predictions.isEmpty() ? null : data.predictions.get(0);
         Dimension playerDimension = hasPlayerPosition ? Dimension.fromBooleanParams(playerPosition.isInOverworld, playerPosition.isInNether) : null;
         Position shPosition = prediction == null ? null : new Position(prediction.chunkX * 16 + 4, prediction.chunkZ * 16 + 4);

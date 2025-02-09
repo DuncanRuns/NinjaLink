@@ -116,7 +116,7 @@ public final class NinjaLinkClient {
 
     private static void bumpFontSize(boolean up) {
         int currentSize = ninjaLinkConfig.fontSize;
-        int newSize = Math.min(24, Math.max(4, currentSize + (up ? 2 : -2)));
+        int newSize = Math.min(24, Math.max(8, currentSize + (up ? 2 : -2)));
         if (currentSize == newSize) return;
         System.out.println("Changed font size to " + newSize);
         createGUIWithFontSize(newSize);

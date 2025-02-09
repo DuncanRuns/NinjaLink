@@ -1,10 +1,8 @@
 package xyz.duncanruns.ninjalink.server;
 
 import xyz.duncanruns.ninjalink.data.*;
-import xyz.duncanruns.ninjalink.util.SocketUtil;
 
 import java.io.IOException;
-import java.net.Socket;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -18,9 +16,9 @@ public class Room {
     private final String name;
     private final String password;
 
-    private final Set<Socket> watchers = new HashSet<>();
-    private final Map<String, Socket> userMap = new ConcurrentHashMap<>();
-    private final Map<Socket, Long> pingMap = new ConcurrentHashMap<>();
+    private final Set<Connection> watchers = new HashSet<>();
+    private final Map<String, Connection> userMap = new ConcurrentHashMap<>();
+    private final Map<Connection, Long> pingMap = new ConcurrentHashMap<>();
     private final NinjaLinkGroupData groupData = new NinjaLinkGroupData();
     private boolean closed = false;
 
@@ -36,9 +34,9 @@ public class Room {
         checkPingsThread.start();
     }
 
-    private static void sendDisconnect(Socket socket, String message) {
+    private static void sendDisconnect(Connection socket, String message) {
         try {
-            SocketUtil.sendStringWithLength(socket, new ServerData(ServerData.Type.DISCONNECT, message).toJson());
+            socket.sendString(new ServerData(ServerData.Type.DISCONNECT, message).toJson());
         } catch (IOException ignored) {
         }
     }
@@ -59,14 +57,14 @@ public class Room {
         }
     }
 
-    private synchronized void socketTimedOut(Socket socket) {
+    private synchronized void socketTimedOut(Connection socket) {
         sendDisconnect(socket, "No data received in the last 15 seconds.");
-        SocketUtil.carelesslyClose(socket);
+        socket.close();
         if (!userMap.containsValue(socket)) return;
         userMap.entrySet().stream().filter(e -> e.getValue() == socket).forEach(e -> removeUser(e.getKey(), e.getValue()));
     }
 
-    private synchronized void onClientError(Socket client, String msg, Exception e, String name) {
+    private synchronized void onClientError(Connection client, String msg, Exception e, String name) {
         if (userMap.containsValue(client)) {
             System.out.println(msg);
             e.printStackTrace();
@@ -83,10 +81,10 @@ public class Room {
         updateAllUsers();
     }
 
-    private synchronized void removeUser(String name, Socket client) {
+    private synchronized void removeUser(String name, Connection client) {
         System.out.println("Removed user " + name + " from room " + this.getPrintedRoomName());
-        SocketUtil.carelesslyClose(userMap.remove(name));
-        SocketUtil.carelesslyClose(client);
+        userMap.remove(name).close();
+        client.close();
         pingMap.remove(client);
         clearPlayerDataForUser(name);
         updateAllUsers();
@@ -103,9 +101,9 @@ public class Room {
         watchers.forEach(this::sendGroupDataToWatcher);
     }
 
-    private boolean sendGroupDataToClient(String name, Socket client) {
+    private boolean sendGroupDataToClient(String name, Connection client) {
         try {
-            SocketUtil.sendStringWithLength(client, new ServerData(groupData).toJson());
+            client.sendString(new ServerData(groupData).toJson());
             return true;
         } catch (Exception e) {
             onClientError(client, "Failed to communicate: " + e, e, name);
@@ -113,9 +111,9 @@ public class Room {
         }
     }
 
-    private boolean sendGroupDataToWatcher(Socket client) {
+    private boolean sendGroupDataToWatcher(Connection client) {
         try {
-            SocketUtil.sendStringWithLength(client, new ServerData(groupData).toJson());
+            client.sendString(new ServerData(groupData).toJson());
             return true;
         } catch (Exception e) {
             removeWatcher(client);
@@ -123,16 +121,16 @@ public class Room {
         }
     }
 
-    private void removeWatcher(Socket client) {
-        SocketUtil.carelesslyClose(client);
+    private void removeWatcher(Connection client) {
+        client.close();
         watchers.remove(client);
         checkShouldClose();
     }
 
-    private void userReceiveLoop(String name, Socket client) {
+    private void userReceiveLoop(String name, Connection client) {
         while (!closed) {
             try {
-                ClientData data = ClientData.fromJson(SocketUtil.receiveStringWithLength(client));
+                ClientData data = ClientData.fromJson(client.receiveString());
                 if (data == null) throw new IOException("Failed to communicate with client.");
 
                 pingMap.put(client, System.currentTimeMillis());
@@ -159,11 +157,11 @@ public class Room {
         groupData.playerDataMap.remove(name);
     }
 
-    private void watcherReceiveLoop(Socket client) {
+    private void watcherReceiveLoop(Connection client) {
         while (!closed) {
             String data;
             try {
-                data = SocketUtil.receiveStringWithLength(client);
+                data = client.receiveString();
                 if (data == null) throw new IOException("No string received");
             } catch (IOException e) {
                 removeWatcher(client);
@@ -177,7 +175,7 @@ public class Room {
         }
     }
 
-    public synchronized AcceptType checkAccept(Socket client, JoinRequest request) throws IOException {
+    public synchronized AcceptType checkAccept(Connection client, JoinRequest request) throws IOException {
         if (closed) throw new IllegalStateException("Connection attempt to a closed room.");
 
         if (!(this.name.isEmpty() || request.roomName.equalsIgnoreCase(this.name))) {
@@ -193,7 +191,7 @@ public class Room {
             return AcceptType.REJECTED;
         }
 
-        SocketUtil.sendStringWithLength(client, new JoinRequestResponse(
+        client.sendString(new JoinRequestResponse(
                 true,
                 !request.roomName.isEmpty() && this.name.isEmpty() ? "Warning: this server does not use custom rooms, anyone using this address will be put into the same room. To skip this message next time, leave the room name and password blank." : ""
         ).toJson());
@@ -233,7 +231,7 @@ public class Room {
         System.out.println("Room " + this.getPrintedRoomName() + " closing...");
         Stream.concat(userMap.values().stream(), watchers.stream()).forEach(socket -> {
             sendDisconnect(socket, "Room or server has been closed.");
-            SocketUtil.carelesslyClose(socket);
+            socket.close();
         });
         userMap.clear();
         watchers.clear();
@@ -241,7 +239,7 @@ public class Room {
 
     public synchronized boolean tryKick(String nickname) {
         nickname = userMap.keySet().stream().filter(nickname::equalsIgnoreCase).findAny().orElse(nickname);
-        Socket socket = userMap.getOrDefault(nickname, null);
+        Connection socket = userMap.getOrDefault(nickname, null);
         if (socket == null) return false;
         sendDisconnect(socket, "You were kicked from the server!");
         removeUser(nickname, socket);

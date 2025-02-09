@@ -6,12 +6,10 @@ import xyz.duncanruns.ninjalink.data.JoinRequestResponse;
 import xyz.duncanruns.ninjalink.util.SocketUtil;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public final class NinjaLinkServer {
@@ -47,7 +45,7 @@ public final class NinjaLinkServer {
         while (!serverSocket.isClosed()) {
             try {
                 Socket client = serverSocket.accept();
-                acceptNewClient(client);
+                acceptNewClient(new SocketConnection(client));
             } catch (Exception e) {
                 if (serverSocket.isClosed()) return;
                 throw e;
@@ -112,9 +110,9 @@ public final class NinjaLinkServer {
         rooms.forEach(Room::close);
     }
 
-    private static synchronized void acceptNewClient(Socket client) {
+    private static synchronized void acceptNewClient(Connection client) {
         try {
-            String joinRequestStr = SocketUtil.receiveStringWithLength(client);
+            String joinRequestStr = client.receiveString();
             if (joinRequestStr == null) throw new IOException("Failed to communicate with new client.");
             JoinRequest joinRequest;
             try {
@@ -169,12 +167,12 @@ public final class NinjaLinkServer {
             rooms.stream().filter(room -> room.isClosed() || room.isEmpty()).peek(Room::close).collect(Collectors.toList()).forEach(rooms::remove);
     }
 
-    public static void rejectConnection(Socket client, String msg) {
+    public static void rejectConnection(Connection client, String msg) {
         try {
-            SocketUtil.sendStringWithLength(client, new JoinRequestResponse(false, msg).toJson());
+            client.sendString(new JoinRequestResponse(false, msg).toJson());
         } catch (Exception ignored) {
         }
-        SocketUtil.carelesslyClose(client);
+        client.close();
     }
 
     public static String[] withoutFirstArg(String[] args) {

@@ -138,8 +138,8 @@ public class NinjaLinkGUI extends JFrame {
             if (playerData.hasStronghold()) {
                 StrongholdPrediction bestStrongholdPrediction = playerData.bestStrongholdPrediction;
                 assert bestStrongholdPrediction != null;
-                double strongholdDist = bestStrongholdPrediction.originalDistance;
-                String strongholdAngleSection = String.format("%.1f", bestStrongholdPrediction.originalAngle);
+                double strongholdDist = bestStrongholdPrediction.distanceFromLastThrow;
+                String strongholdAngleSection = String.format("%.1f", bestStrongholdPrediction.angleFromLastThrow);
                 boolean hasMyPosition = !myData.playerPosition.isEmpty();
                 boolean calcMyAngleAndDist = CALCULATE_VIEWER_ANGLE_AND_DIST && hasMyPosition;
                 Position strongholdPositionInMyDim = Objects.requireNonNull(bestStrongholdPrediction).position.translateDimension(Dimension.OVERWORLD, hasMyPosition ? myData.playerPosition.getDimension() : Dimension.NETHER);

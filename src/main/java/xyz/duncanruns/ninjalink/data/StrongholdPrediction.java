@@ -2,14 +2,14 @@ package xyz.duncanruns.ninjalink.data;
 
 public class StrongholdPrediction {
     public final Position position;
-    public final double originalAngle; // The original measured angle
+    public final double angleFromLastThrow;
     public final double certainty;
-    public final double originalDistance;
+    public final double distanceFromLastThrow;
 
-    public StrongholdPrediction(Position position, double originalAngle, double certainty, double originalDistance) {
+    public StrongholdPrediction(Position position, double angleFromLastThrow, double certainty, double distanceFromLastThrow) {
         this.position = position;
-        this.originalAngle = originalAngle;
+        this.angleFromLastThrow = angleFromLastThrow;
         this.certainty = certainty;
-        this.originalDistance = originalDistance;
+        this.distanceFromLastThrow = distanceFromLastThrow;
     }
 }

@@ -56,6 +56,7 @@ public final class NinjaLinkServer {
             System.out.println("Starting websocket...");
             ninjaLinkWSS = new NinjaLinkWSS(wsPort);
             ninjaLinkWSS.setDaemon(true);
+            ninjaLinkWSS.setReuseAddr(true);
             ninjaLinkWSS.start();
         }
 

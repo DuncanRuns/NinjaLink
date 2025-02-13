@@ -46,6 +46,7 @@ public final class NinjaLinkServer {
 
         System.out.println("Starting socket...");
         serverSocket = new ServerSocket(port);
+        serverSocket.setReuseAddress(true);
 
         if (!serverSocket.isBound()) {
             System.out.println("Server socket did not bind!");

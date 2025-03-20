@@ -71,13 +71,10 @@ public class SocketUtil {
      */
     public static boolean isPortFree(int portNum) {
         try (ServerSocket test = new ServerSocket(portNum)) {
-            // if no exception thrown, port is open
-            test.close(); // currently closes socket as I'm not 100% sure that this will allow a new socket in the same
+            test.close();
             SocketUtil.carelesslyClose(test);
-            // place as the test
             return true;
         } catch (IOException testExc) {
-            //if exception is thrown by creating a socket, it means the port is busy
             return false;
         }
     }
@@ -108,7 +105,6 @@ public class SocketUtil {
         byte[] lengthBytes = SocketUtil.intToBytes(length);
         outputStream.write(lengthBytes);
         if (length == 0) return;
-        // Send bytes of that length
         outputStream.write(bytes);
     }
 

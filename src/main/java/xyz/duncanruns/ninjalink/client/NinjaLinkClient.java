@@ -242,7 +242,7 @@ public final class NinjaLinkClient {
             return;
         }
 
-        if (!response.accepted) { // Rejected
+        if (!response.accepted) {
             close("Rejected for reason: " + response.message);
             return;
         }

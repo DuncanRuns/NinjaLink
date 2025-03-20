@@ -285,7 +285,7 @@ public final class NinjaLinkClient {
     }
 
     private static void receiveLoop(Socket socket) {
-        while (true) {
+        while (!closing) {
             ServerData data;
             try {
                 data = ServerData.fromJson(SocketUtil.receiveStringWithLength(socket, 32768 /*Group data is possibly fairly large*/));

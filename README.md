@@ -35,7 +35,8 @@ A co-op tool to see other player's positions and measured strongholds using Ninj
 
 ## NinjaLink Public Server
 
-As of February 2025, a public NinjaLink server using rooms is available at `ninjalink.duncanruns.xyz`.
+As of February 2025, a public NinjaLink server using rooms is available at `ninjalink.duncanruns.xyz`. For developers,
+the regular socket server is hosted on port 52534 and the websocket server is hosted on port 52535.
 
 ## Hosting a NinjaLink server
 

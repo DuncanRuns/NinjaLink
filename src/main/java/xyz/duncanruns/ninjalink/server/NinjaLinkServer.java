@@ -200,9 +200,7 @@ public final class NinjaLinkServer {
 
         @Override
         public void onClose(WebSocket webSocket, int i, String s, boolean b) {
-            Room remove = connections.remove(webSocket);
-            System.out.println("Room: " + remove);
-            Optional.ofNullable(remove).ifPresent(room -> room.removeUser(webSocket));
+            Optional.ofNullable(connections.remove(webSocket)).ifPresent(room -> room.removeUser(webSocket));
         }
 
         @Override

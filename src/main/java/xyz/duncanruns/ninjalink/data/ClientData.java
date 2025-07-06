@@ -38,7 +38,7 @@ public class ClientData {
     public enum Type {
         NINJABRAIN_BOT_EVENT_DATA,
         CLEAR,
-        PING,
         DISCONNECT,
+        @Deprecated PING, // Now handled by websocket
     }
 }

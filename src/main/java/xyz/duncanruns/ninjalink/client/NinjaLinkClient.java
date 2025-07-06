@@ -1,12 +1,13 @@
 package xyz.duncanruns.ninjalink.client;
 
 import com.formdev.flatlaf.FlatDarkLaf;
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
 import org.jetbrains.annotations.NotNull;
 import xyz.duncanruns.ninjalink.Constants;
 import xyz.duncanruns.ninjalink.client.gui.NinjaLinkGUI;
 import xyz.duncanruns.ninjalink.client.gui.NinjaLinkPrompt;
 import xyz.duncanruns.ninjalink.data.*;
-import xyz.duncanruns.ninjalink.util.SocketUtil;
 
 import javax.swing.*;
 import java.awt.*;
@@ -15,21 +16,24 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.net.Socket;
-import java.util.Timer;
-import java.util.*;
+import java.net.URI;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Optional;
+import java.util.function.Consumer;
 
-public final class NinjaLinkClient {
-    private static NinjabrainBotEventData myData = NinjabrainBotEventData.empty();
-    private static NinjaLinkGUI ninjaLinkGUI = null;
-    private static Socket socket;
-    private static NinjabrainBotConnector ninjabrainBot;
-    private static boolean closing = false;
+public final class NinjaLinkClient  {
     private static NinjaLinkConfig ninjaLinkConfig;
-    private static NinjaLinkGroupData latestData = new NinjaLinkGroupData();
+    private static NinjaLinkGUI ninjaLinkGUI = null;
+    private static NinjabrainBotConnector ninjabrainBot;
 
-    private NinjaLinkClient() {
-    }
+    private static NinjabrainBotEventData myData = NinjabrainBotEventData.empty();
+    private static NinjaLinkGroupData latestData = new NinjaLinkGroupData();
+    private static boolean closing = false;
+
+    private static Consumer<String> onNextReceive = null;
+
+    private static NinjaLinkWSC ws;
 
     public static void main(String[] args) throws InterruptedException, InvocationTargetException {
         ninjaLinkConfig = new NinjaLinkConfig();
@@ -55,7 +59,7 @@ public final class NinjaLinkClient {
             NinjaLinkPrompt prompt = new NinjaLinkPrompt(ninjaLinkGUI, ninjaLinkConfig);
             prompt.setVisible(true);
             if (!prompt.hasPressedOk()) {
-                close();
+                closeClient();
                 return;
             }
             ip = prompt.getAddress();
@@ -72,7 +76,7 @@ public final class NinjaLinkClient {
             try {
                 port = Integer.parseInt(split[1]);
             } catch (Exception e) {
-                close("Failed to convert port to a number!");
+                closeClient("Failed to convert port to a number!");
                 return;
             }
             ip = split[0];
@@ -84,7 +88,11 @@ public final class NinjaLinkClient {
         trySaveConfig();
 
         try {
-            runClient(ip, port);
+            String wsAddr = "ws://" + ip + ":" + port;
+            System.out.println("Connecting to " + wsAddr + "...");
+            ws = new NinjaLinkWSC(URI.create(wsAddr));
+            ws.setDaemon(true);
+            ws.connectBlocking();
         } catch (Exception e) {
             System.out.println("Error while trying to run client: " + e);
             if (ninjaLinkGUI != null)
@@ -133,7 +141,7 @@ public final class NinjaLinkClient {
             ninjaLinkGUI.discard();
             ninjaLinkConfig.bounds = ninjaLinkGUI.getBounds();
         }
-        ninjaLinkGUI = new NinjaLinkGUI(NinjaLinkClient::close, getKeyListener());
+        ninjaLinkGUI = new NinjaLinkGUI(NinjaLinkClient::closeClient, getKeyListener());
         ninjaLinkGUI.setData(latestData, myData);
         ninjaLinkGUI.setBounds(ninjaLinkConfig.bounds);
         ninjaLinkGUI.setPinned(ninjaLinkConfig.guiPinned);
@@ -151,13 +159,14 @@ public final class NinjaLinkClient {
         if (!ninjaLinkConfig.trySave()) System.out.println("Failed to save config!");
     }
 
-    private static synchronized void close() {
-        close(null);
+    private static synchronized void closeClient() {
+        closeClient(null);
     }
 
-    private static synchronized void close(String closeMessage) {
+    private static synchronized void closeClient(String closeMessage) {
         if (closing) return;
         closing = true;
+        if(ws != null) ws.close();
         if (ninjaLinkGUI != null) {
             SwingUtilities.invokeLater(() -> {
                 if (closeMessage != null)
@@ -168,32 +177,24 @@ public final class NinjaLinkClient {
             System.out.println(closeMessage);
         }
         if (ninjabrainBot != null) ninjabrainBot.close();
-        if (socket != null && socket.isConnected() && !socket.isClosed()) sendCarelessDisconnect(socket);
-        SocketUtil.carelesslyClose(socket);
         if (ninjaLinkGUI != null) ninjaLinkConfig.bounds = ninjaLinkGUI.getBounds();
         trySaveConfig();
-    }
-
-    private static void sendCarelessDisconnect(Socket socket) {
-        try {
-            SocketUtil.sendStringWithLength(socket, new ClientData(ClientData.Type.DISCONNECT).toJson());
-        } catch (Exception ignored) {
-        }
     }
 
     private static void onNBotConnectionStateChange(NinjabrainBotConnector.ConnectionState previousState, NinjabrainBotConnector.ConnectionState connectionState) {
         if (ninjaLinkGUI != null) ninjaLinkGUI.setNinjabrainBotConnectionState(connectionState);
         if (previousState == NinjabrainBotConnector.ConnectionState.CONNECTED) {
             System.out.println("Disconnected from Ninjabrain Bot");
+            if (closing) return;
             try {
                 System.out.println("Sending empty data to server...");
                 myData = NinjabrainBotEventData.empty();
-                SocketUtil.sendStringWithLength(socket, new ClientData(ClientData.Type.CLEAR).toJson());
+                ws.send(new ClientData(ClientData.Type.CLEAR).toJson());
             } catch (Exception e) {
                 if (closing) return;
                 System.out.println("Error sending ninjabrain bot data: " + e);
                 e.printStackTrace();
-                close("Error sending ninjabrain bot data: " + e);
+                closeClient("Error sending ninjabrain bot data: " + e);
             }
         } else if (connectionState == NinjabrainBotConnector.ConnectionState.CONNECTED) {
             System.out.println("Connected to Ninjabrain Bot");
@@ -202,35 +203,23 @@ public final class NinjaLinkClient {
 
     private static synchronized void onNBotEvent(String string) {
         System.out.println("New Ninjabrain Bot data received!");
-        if (socket.isClosed() || !socket.isConnected()) return;
+        if (!ws.isOpen()) return;
         try {
             myData = NinjabrainBotEventData.fromJson(string);
             System.out.println("Sending to server...");
-            SocketUtil.sendStringWithLength(socket, new ClientData(myData).toJson());
+            ws.send(new ClientData(myData).toJson());
         } catch (Exception e) {
             if (closing) return;
             System.out.println("Error sending ninjabrain bot data: " + e);
             e.printStackTrace();
-            close("Error sending ninjabrain bot data: " + e);
+            closeClient("Error sending ninjabrain bot data: " + e);
         }
     }
 
-    private static void runClient(String ip, int port) throws IOException {
-        try {
-            socket = new Socket(ip, port);
-        } catch (Exception e) {
-            if (closing) return;
-            close("Failed to connect to server!");
-            return;
-        }
-
-        SocketUtil.sendStringWithLength(socket, new JoinRequest(ninjaLinkConfig.nickname, ninjaLinkConfig.roomName, ninjaLinkConfig.roomPass, Constants.PROTOCOL_VERSION).toJson());
-
-        String responseStr = SocketUtil.receiveStringWithLength(socket);
+    private static void onJoinResponseString(String responseStr) {
         if (responseStr == null || responseStr.isEmpty()) {
             if (closing) return;
-            close("Failed to communicate with server.");
-            return;
+            closeClient("Failed to communicate with server.");
         }
         JoinRequestResponse response;
         try {
@@ -238,14 +227,16 @@ public final class NinjaLinkClient {
             if (response == null) throw new IOException("Empty response.");
         } catch (Exception e) {
             if (closing) return;
-            close("Failed to parse server response.");
+            closeClient("Failed to parse server response.");
             return;
         }
 
         if (!response.accepted) {
-            close("Rejected for reason: " + response.message);
+            closeClient("Rejected for reason: " + response.message);
             return;
         }
+
+        onNextReceive = NinjaLinkClient::onReceiveServerDataString;
 
         if (!response.message.isEmpty()) {
             if (ninjaLinkGUI == null) {
@@ -259,53 +250,27 @@ public final class NinjaLinkClient {
 
         ninjabrainBot = new NinjabrainBotConnector(NinjaLinkClient::onNBotEvent, NinjaLinkClient::onNBotConnectionStateChange);
         ninjabrainBot.start();
-
-        startPingTimer();
-
-        receiveLoop(socket);
     }
 
-    private static void startPingTimer() {
-        new Timer("Ping-Timer", true).scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                ping();
-            }
-        }, 5_000, 5_000);
-    }
-
-    private static synchronized void ping() {
-        if (closing) return;
-        if (!socket.isConnected() || socket.isClosed()) return;
+    private static void onReceiveServerDataString(String string) {
+        ServerData data;
         try {
-            SocketUtil.sendStringWithLength(socket, new ClientData(ClientData.Type.PING).toJson());
-        } catch (IOException e) {
-            close("Failed to ping server!");
+            data = ServerData.fromJson(string);
+            if (data == null) throw new IOException("No data received from server");
+        } catch (Exception e) {
+            if (!closing) e.printStackTrace();
+            closeClient("Error during communication: " + e);
+            return;
         }
-    }
 
-    private static void receiveLoop(Socket socket) {
-        while (!closing) {
-            ServerData data;
-            try {
-                data = ServerData.fromJson(SocketUtil.receiveStringWithLength(socket, 32768 /*Group data is possibly fairly large*/));
-                if (data == null) throw new IOException("No data received from server");
-            } catch (Exception e) {
-                if (!closing) e.printStackTrace();
-                close("Error during communication: " + e);
+        if (data.type == ServerData.Type.DISCONNECT) {
+            closeClient("Disconnected from server: " + data.message);
+        } else if (data.type == ServerData.Type.GROUP_DATA) {
+            if (data.ninjaLinkGroupData == null) {
+                closeClient("Expected group data but got null!");
                 return;
             }
-
-            if (data.type == ServerData.Type.DISCONNECT) {
-                close("Disconnected from server: " + data.message);
-                return;
-            } else if (data.type == ServerData.Type.GROUP_DATA) {
-                if (data.ninjaLinkGroupData == null) {
-                    close("Expected group data but got null!");
-                    return;
-                }
-                onNewGroupData(data.ninjaLinkGroupData);
-            }
+            onNewGroupData(data.ninjaLinkGroupData);
         }
     }
 
@@ -313,5 +278,34 @@ public final class NinjaLinkClient {
         System.out.println("New group data received: " + ninjaLinkGroupData.toJson());
         NinjaLinkClient.latestData = ninjaLinkGroupData;
         if (ninjaLinkGUI != null) ninjaLinkGUI.setData(ninjaLinkGroupData, myData);
+    }
+
+    private static class NinjaLinkWSC extends WebSocketClient {
+        public NinjaLinkWSC(URI serverUri) {
+            super(serverUri);
+        }
+
+        @Override
+        public void onOpen(ServerHandshake handshakedata) {
+            System.out.println("Connected to server!");
+            onNextReceive = NinjaLinkClient::onJoinResponseString;
+            this.send(new JoinRequest(ninjaLinkConfig.nickname, ninjaLinkConfig.roomName, ninjaLinkConfig.roomPass, Constants.PROTOCOL_VERSION).toJson());
+        }
+
+        @Override
+        public void onMessage(String message) {
+            assert onNextReceive != null;
+            onNextReceive.accept(message);
+        }
+
+        @Override
+        public void onClose(int code, String reason, boolean remote) {
+            closeClient("Connection closed by " + (remote ? "server" : "client") + " with code " + code + " and reason: " + reason);
+        }
+
+        @Override
+        public void onError(Exception ex) {
+            closeClient("Error in websocket: " + ex + "\n" + ex.getMessage());
+        }
     }
 }

@@ -22,7 +22,7 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-public final class NinjaLinkClient  {
+public final class NinjaLinkClient {
     private static NinjaLinkConfig ninjaLinkConfig;
     private static NinjaLinkGUI ninjaLinkGUI = null;
     private static NinjabrainBotConnector ninjabrainBot;
@@ -166,7 +166,7 @@ public final class NinjaLinkClient  {
     private static synchronized void closeClient(String closeMessage) {
         if (closing) return;
         closing = true;
-        if(ws != null) ws.close();
+        if (ws != null) ws.close();
         if (ninjaLinkGUI != null) {
             SwingUtilities.invokeLater(() -> {
                 if (closeMessage != null)

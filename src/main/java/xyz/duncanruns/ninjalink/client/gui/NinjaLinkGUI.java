@@ -3,8 +3,8 @@ package xyz.duncanruns.ninjalink.client.gui;
 import com.intellij.uiDesigner.core.Spacer;
 import org.jetbrains.annotations.NotNull;
 import xyz.duncanruns.ninjalink.client.NinjabrainBotConnector.ConnectionState;
-import xyz.duncanruns.ninjalink.data.Dimension;
 import xyz.duncanruns.ninjalink.data.*;
+import xyz.duncanruns.ninjalink.data.Dimension;
 import xyz.duncanruns.ninjalink.util.AngleUtil;
 
 import javax.swing.*;
@@ -30,7 +30,7 @@ public class NinjaLinkGUI extends JFrame {
     private boolean discarded = false;
     private static final boolean CALCULATE_VIEWER_ANGLE_AND_DIST = false;
     private final JLabel waitingForDataLabel;
-    private int paddingSize;
+    private final int paddingSize;
 
     private static ConnectionState nBotState = ConnectionState.CLOSED;
 

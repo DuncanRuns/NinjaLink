@@ -22,7 +22,7 @@ public class HintTextField extends JTextField implements FocusListener {
         this.hint = hint;
         this.showingHint = true;
         super.addFocusListener(this);
-        
+
         // Store original text color and set hint color to gray
         this.textColor = getForeground();
         this.hintColor = Color.GRAY;

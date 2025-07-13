@@ -18,13 +18,15 @@ public final class ClipboardListener {
     private final Runnable onStart;
 
     public ClipboardListener(int delay, Consumer<String> onChange) {
-        AtomicReference<String> last = new AtomicReference<>(getClipboardContents().orElse(""));
-        this.onStart = () -> executor.scheduleWithFixedDelay(() -> getClipboardContents().ifPresent(s -> {
-            if (!s.equals(last.get())) {
-                last.set(s);
-                onChange.accept(s);
-            }
-        }), delay, delay, TimeUnit.MILLISECONDS);
+        this.onStart = () -> {
+            AtomicReference<String> last = new AtomicReference<>(getClipboardContents().orElse(""));
+            executor.scheduleWithFixedDelay(() -> getClipboardContents().ifPresent(s -> {
+                if (!s.equals(last.get())) {
+                    last.set(s);
+                    onChange.accept(s);
+                }
+            }), delay, delay, TimeUnit.MILLISECONDS);
+        };
     }
 
     @NotNull

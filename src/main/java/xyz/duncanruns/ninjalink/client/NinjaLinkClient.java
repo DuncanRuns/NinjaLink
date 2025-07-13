@@ -70,29 +70,16 @@ public final class NinjaLinkClient {
             roomPass = prompt.getRoomPass();
         }
 
-        ninjaLinkConfig.ip = ip.trim();
-
-        int port = 52534;
-        if (ip.contains(":")) {
-            String[] split = ip.split(":");
-            try {
-                port = Integer.parseInt(split[1]);
-            } catch (Exception e) {
-                closeClient("Failed to convert port to a number!");
-                return;
-            }
-            ip = split[0];
-        }
-
+        ninjaLinkConfig.address = ip.trim();
         ninjaLinkConfig.nickname = nickname.trim();
         ninjaLinkConfig.roomName = roomName.trim();
         ninjaLinkConfig.roomPass = roomPass.trim();
         trySaveConfig();
 
         try {
-            String wsAddr = "ws://" + ip + ":" + port;
-            System.out.println("Connecting to " + wsAddr + "...");
-            ws = new NinjaLinkWSC(URI.create(wsAddr));
+            if (ip.isEmpty()) ip = Constants.DEFAULT_ADDRESS;
+            System.out.println("Connecting to " + ip + "...");
+            ws = new NinjaLinkWSC(URI.create(ip));
             ws.setDaemon(true);
             ws.connectBlocking();
         } catch (Exception e) {

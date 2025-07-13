@@ -12,7 +12,7 @@ import java.util.Optional;
 public class NinjaLinkConfig {
     private static final Path CONFIG_FILE = Paths.get("ninja-link-config.json");
 
-    public String ip = "ninjalink.duncanruns.xyz";
+    public String address = "";
     public String nickname = "";
     public String roomName = "";
     public String roomPass = "";

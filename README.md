@@ -35,8 +35,7 @@ A co-op tool to see other player's positions and measured strongholds using Ninj
 
 ## NinjaLink Public Server
 
-As of February 2025, a public NinjaLink server using rooms is available at `ninjalink.duncanruns.xyz`. For developers,
-the regular socket server is hosted on port 52534 and the websocket server is hosted on port 52535.
+As of February 2025, a public NinjaLink server using rooms is available at `ws://ninjalink.duncanruns.xyz:52534`.
 
 ## Hosting a NinjaLink server
 
@@ -48,7 +47,3 @@ jar. You can also specify a custom port for the NinjaLink server, for example
 By default, your hosted server will not have rooms, and will have a single default room that every user will be
 redirected to. You can host a rooms server by adding the `rooms` argument anywhere after the port argument, for example
 `java -jar NinjaLink-<version>.jar server default rooms` (`default` meaning default port number).
-
-By default, your hosted server will not open a websocket server. You can open one by adding the `ws` argument anywhere
-after the regular socket's port, you can also specify a custom websocket port, e.g. `ws:52535` will open the websocket
-server with port 52535.

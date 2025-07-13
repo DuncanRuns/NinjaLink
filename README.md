@@ -35,7 +35,7 @@ A co-op tool to see other player's positions and measured strongholds using Ninj
 
 ## NinjaLink Public Server
 
-As of February 2025, a public NinjaLink server using rooms is available at `ws://ninjalink.duncanruns.xyz:52534`.
+As of July 2025, a public NinjaLink server using rooms is available at `ws://ninjalink.duncanruns.xyz:52534`.
 
 ## Hosting a NinjaLink server
 

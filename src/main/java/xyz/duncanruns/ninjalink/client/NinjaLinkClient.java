@@ -115,6 +115,9 @@ public final class NinjaLinkClient {
                         break;
                     case 40:
                         bumpFontSize(false);
+                        break;zz
+                    case 67:
+                        onClearPressed();
                         break;
                     case 80:
                         swapGuiPinned();
@@ -122,6 +125,15 @@ public final class NinjaLinkClient {
                 }
             }
         };
+    }
+
+    private static synchronized void onClearPressed() {
+        if (ninjabrainBot.getConnectionState() == NinjabrainBotConnector.ConnectionState.CONNECTED) {
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(ninjaLinkGUI, "To clear position while connected to Ninjabrain Bot, press your Ninjabrain Bot reset key or click the reset button on the Ninjabrain Bot GUI.", "NinjaLink: Cannot Clear", JOptionPane.INFORMATION_MESSAGE));
+            return;
+        }
+        myData = PlayerData.empty();
+        sendClear();
     }
 
     private static void bumpFontSize(boolean up) {
@@ -309,11 +321,6 @@ public final class NinjaLinkClient {
         long z = (long) Math.floor(Double.parseDouble(matcher.group(4)));
         double yaw = Double.parseDouble(matcher.group(5));
         double pitch = Double.parseDouble(matcher.group(6));
-
-        if (pitch == -90d) {
-            sendClear();
-            return;
-        }
 
         F3CData f3CData = new F3CData(dimension, x, y, z, yaw, pitch);
         try {

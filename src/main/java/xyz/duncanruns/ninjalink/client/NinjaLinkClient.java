@@ -115,7 +115,7 @@ public final class NinjaLinkClient {
                         break;
                     case 40:
                         bumpFontSize(false);
-                        break;zz
+                        break;
                     case 67:
                         onClearPressed();
                         break;

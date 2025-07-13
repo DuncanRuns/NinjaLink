@@ -5,9 +5,11 @@ import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.jetbrains.annotations.NotNull;
 import xyz.duncanruns.ninjalink.Constants;
+import xyz.duncanruns.ninjalink.client.clipboard.ClipboardListener;
 import xyz.duncanruns.ninjalink.client.gui.NinjaLinkGUI;
 import xyz.duncanruns.ninjalink.client.gui.NinjaLinkPrompt;
 import xyz.duncanruns.ninjalink.data.*;
+import xyz.duncanruns.ninjalink.data.Dimension;
 
 import javax.swing.*;
 import java.awt.*;
@@ -20,20 +22,20 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class NinjaLinkClient {
     private static NinjaLinkConfig ninjaLinkConfig;
     private static NinjaLinkGUI ninjaLinkGUI = null;
-    private static NinjabrainBotConnector ninjabrainBot;
 
-    private static NinjabrainBotEventData myData = NinjabrainBotEventData.empty();
+    private static NinjabrainBotConnector ninjabrainBot;
+    private static PlayerData myData = PlayerData.empty();
     private static NinjaLinkGroupData latestData = new NinjaLinkGroupData();
     private static boolean closing = false;
-
-    private static Consumer<String> onNextReceive = null;
-
+    private static boolean joined = false;
     private static NinjaLinkWSC ws;
+    private static final ClipboardListener clipboardListener = new ClipboardListener(250, NinjaLinkClient::onClipboardChange);
 
     public static void main(String[] args) throws InterruptedException, InvocationTargetException {
         ninjaLinkConfig = new NinjaLinkConfig();
@@ -181,15 +183,20 @@ public final class NinjaLinkClient {
         trySaveConfig();
     }
 
-    private static void onNBotConnectionStateChange(NinjabrainBotConnector.ConnectionState previousState, NinjabrainBotConnector.ConnectionState connectionState) {
+    private static synchronized void onNBotConnectionStateChange(NinjabrainBotConnector.ConnectionState previousState, NinjabrainBotConnector.ConnectionState connectionState) {
+        if (connectionState != NinjabrainBotConnector.ConnectionState.CONNECTED) {
+            clipboardListener.start();
+        } else {
+            clipboardListener.stop();
+        }
         if (ninjaLinkGUI != null) ninjaLinkGUI.setNinjabrainBotConnectionState(connectionState);
         if (previousState == NinjabrainBotConnector.ConnectionState.CONNECTED) {
             System.out.println("Disconnected from Ninjabrain Bot");
             if (closing) return;
             try {
                 System.out.println("Sending empty data to server...");
-                myData = NinjabrainBotEventData.empty();
-                ws.send(new ClientData(ClientData.Type.CLEAR).toJson());
+                myData = PlayerData.empty();
+                sendClear();
             } catch (Exception e) {
                 if (closing) return;
                 System.out.println("Error sending ninjabrain bot data: " + e);
@@ -205,9 +212,10 @@ public final class NinjaLinkClient {
         System.out.println("New Ninjabrain Bot data received!");
         if (!ws.isOpen()) return;
         try {
-            myData = NinjabrainBotEventData.fromJson(string);
+            NinjabrainBotEventData data = NinjabrainBotEventData.fromJson(string);
+            myData = PlayerData.fromNinjabrainBotEventData(data);
             System.out.println("Sending to server...");
-            ws.send(new ClientData(myData).toJson());
+            ws.send(new ClientData(data).toJson());
         } catch (Exception e) {
             if (closing) return;
             System.out.println("Error sending ninjabrain bot data: " + e);
@@ -236,8 +244,6 @@ public final class NinjaLinkClient {
             return;
         }
 
-        onNextReceive = NinjaLinkClient::onReceiveServerDataString;
-
         if (!response.message.isEmpty()) {
             if (ninjaLinkGUI == null) {
                 System.out.println("Message from server:\n" + response.message);
@@ -247,6 +253,8 @@ public final class NinjaLinkClient {
         }
 
         System.out.println("Connection accepted!");
+
+        joined = true;
 
         ninjabrainBot = new NinjabrainBotConnector(NinjaLinkClient::onNBotEvent, NinjaLinkClient::onNBotConnectionStateChange);
         ninjabrainBot.start();
@@ -280,6 +288,49 @@ public final class NinjaLinkClient {
         if (ninjaLinkGUI != null) ninjaLinkGUI.setData(ninjaLinkGroupData, myData);
     }
 
+    private static synchronized void onClipboardChange(String s) {
+        if (ninjabrainBot.getConnectionState() == NinjabrainBotConnector.ConnectionState.CONNECTED) return;
+        Pattern f3cPattern = Pattern.compile("^\\/execute in (\\w+:\\w+) run tp @s (-?\\d+\\.\\d\\d) (-?\\d+\\.\\d\\d) (-?\\d+\\.\\d\\d) (-?\\d+\\.\\d\\d) (-?\\d+\\.\\d\\d)$");
+        Matcher matcher = f3cPattern.matcher(s);
+        if (!matcher.matches()) return;
+        String dimensionStr = matcher.group(1);
+        Dimension dimension;
+        if (dimensionStr.contains("nether")) {
+            dimension = Dimension.NETHER;
+        } else if (dimensionStr.contains("end")) {
+            dimension = Dimension.END;
+        } else {
+            dimension = Dimension.OVERWORLD; // Could be some weird dimension like a custom world but that's fine
+        }
+
+        // Get (ints) x, y, z, (doubles) yaw, and pitch from matcher
+        long x = (long) Math.floor(Double.parseDouble(matcher.group(2)));
+        long y = (long) Math.floor(Double.parseDouble(matcher.group(3)));
+        long z = (long) Math.floor(Double.parseDouble(matcher.group(4)));
+        double yaw = Double.parseDouble(matcher.group(5));
+        double pitch = Double.parseDouble(matcher.group(6));
+
+        if (pitch == -90d) {
+            sendClear();
+            return;
+        }
+
+        F3CData f3CData = new F3CData(dimension, x, y, z, yaw, pitch);
+        try {
+            ws.send(new ClientData(f3CData).toJson());
+        } catch (Exception e) {
+            if (closing) return;
+            System.out.println("Error sending f3c data: " + e);
+            e.printStackTrace();
+            closeClient("Error sending f3c data: " + e);
+        }
+
+    }
+
+    private static synchronized void sendClear() {
+        ws.send(new ClientData(ClientData.Type.CLEAR).toJson());
+    }
+
     private static class NinjaLinkWSC extends WebSocketClient {
         public NinjaLinkWSC(URI serverUri) {
             super(serverUri);
@@ -288,14 +339,16 @@ public final class NinjaLinkClient {
         @Override
         public void onOpen(ServerHandshake handshakedata) {
             System.out.println("Connected to server!");
-            onNextReceive = NinjaLinkClient::onJoinResponseString;
             this.send(new JoinRequest(ninjaLinkConfig.nickname, ninjaLinkConfig.roomName, ninjaLinkConfig.roomPass, Constants.PROTOCOL_VERSION).toJson());
         }
 
         @Override
         public void onMessage(String message) {
-            assert onNextReceive != null;
-            onNextReceive.accept(message);
+            if (joined) {
+                NinjaLinkClient.onReceiveServerDataString(message);
+            } else {
+                NinjaLinkClient.onJoinResponseString(message);
+            }
         }
 
         @Override

@@ -35,6 +35,18 @@ public class PlayerData {
         );
     }
 
+    public static PlayerData fromF3CData(F3CData f3CData) {
+        return new PlayerData(
+                new Position(f3CData.x, f3CData.z),
+                f3CData.dimension,
+                null
+        );
+    }
+
+    public static PlayerData empty() {
+        return new PlayerData(null, null, null);
+    }
+
     public boolean isEmpty() {
         return position == null && dimension == null && bestStrongholdPrediction == null;
     }

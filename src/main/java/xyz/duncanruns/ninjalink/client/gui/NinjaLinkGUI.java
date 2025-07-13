@@ -5,7 +5,6 @@ import org.jetbrains.annotations.NotNull;
 import xyz.duncanruns.ninjalink.client.NinjabrainBotConnector.ConnectionState;
 import xyz.duncanruns.ninjalink.data.*;
 import xyz.duncanruns.ninjalink.data.Dimension;
-import xyz.duncanruns.ninjalink.util.AngleUtil;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -19,6 +18,7 @@ import java.awt.event.WindowEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,7 +28,6 @@ public class NinjaLinkGUI extends JFrame {
     private final JTable strongholdTable = new JTable();
     private final Spacer strongholdSpacer = new Spacer();
     private boolean discarded = false;
-    private static final boolean CALCULATE_VIEWER_ANGLE_AND_DIST = false;
     private final JLabel waitingForDataLabel;
     private final int paddingSize;
 
@@ -97,7 +96,7 @@ public class NinjaLinkGUI extends JFrame {
         }
     }
 
-    public void setData(NinjaLinkGroupData groupData, NinjabrainBotEventData myData) {
+    public void setData(NinjaLinkGroupData groupData, PlayerData myData) {
         if (!SwingUtilities.isEventDispatchThread()) {
             try {
                 SwingUtilities.invokeAndWait(() -> setData(groupData, myData));
@@ -141,16 +140,7 @@ public class NinjaLinkGUI extends JFrame {
                 assert bestStrongholdPrediction != null;
                 double strongholdDist = bestStrongholdPrediction.distanceFromLastThrow;
                 String strongholdAngleSection = String.format("%.1f", bestStrongholdPrediction.angleFromLastThrow);
-                boolean hasMyPosition = !myData.playerPosition.isEmpty();
-                boolean calcMyAngleAndDist = CALCULATE_VIEWER_ANGLE_AND_DIST && hasMyPosition;
-                Position strongholdPositionInMyDim = Objects.requireNonNull(bestStrongholdPrediction).position.translateDimension(Dimension.OVERWORLD, hasMyPosition ? myData.playerPosition.getDimension() : Dimension.NETHER);
-                if (calcMyAngleAndDist) {
-                    Position myPosition = myData.playerPosition.getPosition();
-                    strongholdDist = strongholdPositionInMyDim.distanceTo(myPosition);
-                    double angleToStronghold = myPosition.angleTo(strongholdPositionInMyDim);
-                    double angleDiffToStronghold = AngleUtil.angleDifference(Objects.requireNonNull(myData.playerPosition.horizontalAngle), angleToStronghold);
-                    strongholdAngleSection = String.format(angleDiffToStronghold > 0 ? "%.1f (-> %.1f)" : "%.1f (<- %.1f)", angleToStronghold, Math.abs(angleDiffToStronghold));
-                }
+                Position strongholdPositionInMyDim = Objects.requireNonNull(bestStrongholdPrediction).position.translateDimension(Dimension.OVERWORLD, Optional.ofNullable(myData.dimension).orElse(Dimension.NETHER));
                 totalStrongholds.getAndIncrement();
                 strongholdTableModel.addRow(new String[]{
                         playerName,

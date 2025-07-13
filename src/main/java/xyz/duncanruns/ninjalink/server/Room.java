@@ -126,11 +126,21 @@ public class Room {
             if (data.ninjabrainBotEventData == null)
                 throw new IOException("Expected Ninjabrain Bot Event Data but got null!");
             onNewNinjabrainBotEventData(name, data.ninjabrainBotEventData);
+        } else if (data.type == ClientData.Type.F3C) {
+            if (data.f3CData == null)
+                throw new IOException("Expected F3C Data but got null!");
+            onNewF3CData(name, data.f3CData);
         }
+    }
+
+    private void onNewF3CData(String name, F3CData f3CData) {
+        groupData.playerDataMap.put(name, PlayerData.fromF3CData(f3CData));
+        updateAllUsers();
     }
 
     private synchronized void clearPlayerDataForUser(String name) {
         groupData.playerDataMap.remove(name);
+        updateAllUsers();
     }
 
     private void onReceiveWatcherString(WebSocket client, String string) {

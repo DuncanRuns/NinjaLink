@@ -68,6 +68,17 @@ public class NinjabrainBotConnector {
         eventSource.cancel();
     }
 
+    public ConnectionState getConnectionState() {
+        return connectionState;
+    }
+
+    private void setConnectionState(ConnectionState connectionState) {
+        ConnectionState previousState = this.connectionState;
+        if (previousState == connectionState) return;
+        this.connectionState = connectionState;
+        onConnectionStateChange.accept(previousState, connectionState);
+    }
+
     private synchronized void startNewConnection() {
         setConnectionState(ConnectionState.CONNECTING);
         OkHttpClient client = new OkHttpClient.Builder().readTimeout(0, TimeUnit.SECONDS).build();
@@ -96,13 +107,6 @@ public class NinjabrainBotConnector {
                 onClosed(eventSource);
             }
         });
-    }
-
-    private void setConnectionState(ConnectionState connectionState) {
-        ConnectionState previousState = this.connectionState;
-        if (previousState == connectionState) return;
-        this.connectionState = connectionState;
-        onConnectionStateChange.accept(previousState, connectionState);
     }
 
     public enum ConnectionState {

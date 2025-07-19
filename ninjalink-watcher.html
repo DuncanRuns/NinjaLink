@@ -143,7 +143,7 @@
 
             <div class="form-group" id="customServerGroup" style="display: none;">
                 <label for="serverAddress">Server Address:</label>
-                <input type="text" id="serverAddress" name="serverAddress" placeholder="ws://example.com:52534">
+                <input type="text" id="serverAddress" name="serverAddress" placeholder="wss://example.com:52534">
             </div>
 
             <div class="form-group" id="roomlessGroup" style="display: none;">
@@ -199,7 +199,7 @@
     </div>
 
     <script>
-        const DEFAULT_SERVER = 'ws://ninjalink.duncanruns.xyz:52535'; // TODO: Change port to 52534 when v1.1.0 is released.
+        const DEFAULT_SERVER = 'wss://ninjalink.duncanruns.xyz:52536'; // 52534 = old raw socket or new websocket, 52535 = old websocket, 52536 = secure public server's port
         const PROTOCOL_VERSION = 1; // Protocol 2 only includes F3C which is only used by java clients, and since this is a watcher, it doesn't matter.
 
         let ws = null;

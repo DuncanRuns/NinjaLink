@@ -1,0 +1,482 @@
+<!-- Yes, this was vibe coded -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NinjaLink Watcher</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #2b2b2b;
+            color: #ffffff;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background-color: #3c3c3c;
+            color: #ffffff;
+            box-sizing: border-box;
+        }
+
+        input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .status.success {
+            background-color: #4CAF50;
+            display: block;
+        }
+
+        .status.error {
+            background-color: #f44336;
+            display: block;
+        }
+
+        .data-display {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .table-container {
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #3c3c3c;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: center;
+            border: none;
+        }
+
+        th {
+            background-color: #4a4a4a;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #404040;
+        }
+
+        h3 {
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="connectionSection">
+        <form id="connectionForm">
+            <div class="form-group">
+                <label for="roomName">Room Name:</label>
+                <input type="text" id="roomName" name="roomName">
+            </div>
+
+            <div class="form-group">
+                <label for="roomPassword">Room Password:</label>
+                <input type="password" id="roomPassword" name="roomPassword">
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="customServer" name="customServer">
+                    Custom Server
+                </label>
+            </div>
+
+            <div class="form-group" id="customServerGroup" style="display: none;">
+                <label for="serverAddress">Server Address:</label>
+                <input type="text" id="serverAddress" name="serverAddress" placeholder="ws://example.com:52534">
+            </div>
+
+            <div class="form-group" id="roomlessGroup" style="display: none;">
+                <label>
+                    <input type="checkbox" id="roomless" name="roomless">
+                    Roomless Server
+                </label>
+            </div>
+
+            <button type="submit" id="connectBtn">Connect as Watcher</button>
+        </form>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <div id="dataDisplay" class="data-display">
+        <div id="status" class="status"></div>
+
+        <div class="table-container">
+            <table id="playerTable">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Position</th>
+                        <th>Dimension</th>
+                    </tr>
+                </thead>
+                <tbody id="playerTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-container" id="strongholdContainer" style="display: none;">
+            <table id="strongholdTable">
+                <thead>
+                    <tr>
+                        <th>Measurer</th>
+                        <th>Overworld</th>
+                        <th>%</th>
+                        <th>Dist.</th>
+                        <th>Nether</th>
+                        <th>Angle</th>
+                    </tr>
+                </thead>
+                <tbody id="strongholdTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="noDataMessage" style="text-align: center; padding: 20px; color: #888;">
+            No player data available
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_SERVER = 'ws://ninjalink.duncanruns.xyz:52535'; // TODO: Change port to 52534 when v1.1.0 is released.
+        const PROTOCOL_VERSION = 1; // Protocol 2 only includes F3C which is only used by java clients, and since this is a watcher, it doesn't matter.
+
+        let ws = null;
+        let connected = false;
+
+        // Form elements
+        const form = document.getElementById('connectionForm');
+        const customServerCheckbox = document.getElementById('customServer');
+        const customServerGroup = document.getElementById('customServerGroup');
+        const roomlessGroup = document.getElementById('roomlessGroup');
+        const roomlessCheckbox = document.getElementById('roomless');
+        const connectBtn = document.getElementById('connectBtn');
+        const status = document.getElementById('status');
+        const connectionSection = document.getElementById('connectionSection');
+        const dataDisplay = document.getElementById('dataDisplay');
+        const playerTableBody = document.getElementById('playerTableBody');
+        const strongholdTableBody = document.getElementById('strongholdTableBody');
+        const strongholdContainer = document.getElementById('strongholdContainer');
+        const noDataMessage = document.getElementById('noDataMessage');
+
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasParams = urlParams.has('room') || urlParams.has('server') || urlParams.has('pass');
+
+        // Check if we should auto-connect or show form
+        if (hasParams) {
+            // Auto-connect mode - hide form and connect immediately
+            connectionSection.style.display = 'none';
+            dataDisplay.style.display = 'block';
+
+            // Initially hide tables until we have data
+            document.querySelector('.table-container').style.display = 'none';
+            strongholdContainer.style.display = 'none';
+            noDataMessage.style.display = 'block';
+
+            const roomName = urlParams.get('room') || '';
+            const roomPassword = urlParams.get('pass') || '';
+            const serverAddress = urlParams.get('server') || DEFAULT_SERVER;
+
+            connect(serverAddress, roomName, roomPassword);
+        } else {
+            // Form mode - show input boxes
+            connectionSection.style.display = 'block';
+            dataDisplay.style.display = 'none';
+        }
+
+        // Show/hide custom server options
+        customServerCheckbox.addEventListener('change', function () {
+            if (this.checked) {
+                customServerGroup.style.display = 'block';
+                roomlessGroup.style.display = 'block';
+            } else {
+                customServerGroup.style.display = 'none';
+                roomlessGroup.style.display = 'none';
+                roomlessCheckbox.checked = false;
+            }
+        });
+
+        // Initialize custom server visibility on page load
+        if (customServerCheckbox.checked) {
+            customServerGroup.style.display = 'block';
+            roomlessGroup.style.display = 'block';
+        }
+
+        // Clear room fields when roomless is checked
+        roomlessCheckbox.addEventListener('change', function () {
+            if (this.checked) {
+                document.getElementById('roomName').value = '';
+                document.getElementById('roomPassword').value = '';
+                document.getElementById('roomName').disabled = true;
+                document.getElementById('roomPassword').disabled = true;
+            } else {
+                document.getElementById('roomName').disabled = false;
+                document.getElementById('roomPassword').disabled = false;
+            }
+        });
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const roomName = roomlessCheckbox.checked ? '' : document.getElementById('roomName').value.trim();
+            const roomPassword = roomlessCheckbox.checked ? '' : document.getElementById('roomPassword').value.trim();
+            const serverAddress = customServerCheckbox.checked ?
+                document.getElementById('serverAddress').value.trim() : DEFAULT_SERVER;
+
+            // Build URL with parameters and redirect
+            const params = new URLSearchParams();
+            if (roomName) params.set('room', roomName);
+            if (roomPassword) params.set('pass', roomPassword);
+            if (serverAddress !== DEFAULT_SERVER) params.set('server', serverAddress);
+
+            window.location.href = window.location.pathname + '?' + params.toString();
+        });
+
+        function connect(serverAddress, roomName, roomPassword) {
+            showStatus('Connecting...', 'success');
+
+            try {
+                ws = new WebSocket(serverAddress);
+
+                ws.onopen = function () {
+                    console.log('Connected to server');
+
+                    // Send join request as watcher (nickname = null)
+                    const joinRequest = {
+                        nickname: null,
+                        roomName: roomName,
+                        roomPass: roomPassword,
+                        protocolVersion: PROTOCOL_VERSION
+                    };
+
+                    ws.send(JSON.stringify(joinRequest));
+                };
+
+                ws.onmessage = function (event) {
+                    try {
+                        console.log("Data: " + event.data);
+
+                        const data = JSON.parse(event.data);
+
+                        if (!connected) {
+                            // Handle join response
+                            console.log('Join response:', data);
+                            if (data.accepted) {
+                                connected = true;
+                                // Hide status when successfully connected
+                                document.querySelector('#dataDisplay #status').style.display = 'none';
+                            } else {
+                                showStatus('Connection rejected: ' + (data.message || 'Unknown error'), 'error');
+                                return;
+                            }
+                        } else {
+                            // Handle server data
+                            if (data.type === 'DISCONNECT') {
+                                location.reload();
+                            } else if (data.ninjaLinkGroupData) {
+                                updatePlayerData(data.ninjaLinkGroupData);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error parsing message:', e);
+                    }
+                };
+
+                ws.onclose = function (event) {
+                    if (connected) {
+                        location.reload();
+                    } else {
+                        // Only show generic connection failed if we haven't already shown a rejection message
+                        const statusElement = document.querySelector('#dataDisplay #status');
+                        if (!statusElement.textContent.includes('Connection rejected')) {
+                            showStatus('Connection failed', 'error');
+                        }
+                    }
+                };
+
+                ws.onerror = function (error) {
+                    const statusElement = document.querySelector('#dataDisplay #status');
+                    if (!statusElement.textContent.includes('Connection rejected')) {
+                        showStatus('Connection error: ' + error, 'error');
+                    }
+                };
+
+            } catch (error) {
+                showStatus('Failed to connect: ' + error, 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusElement = hasParams ?
+                document.querySelector('#dataDisplay #status') :
+                document.querySelector('#connectionSection #status');
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + type;
+            statusElement.style.display = 'block';
+        }
+
+        function updatePlayerData(groupData) {
+            playerTableBody.innerHTML = '';
+            strongholdTableBody.innerHTML = '';
+
+            let hasPlayers = false;
+            let hasStrongholds = false;
+
+            if (groupData.playerDataMap) {
+                for (const [playerName, playerData] of Object.entries(groupData.playerDataMap)) {
+                    hasPlayers = true;
+
+                    // Add player row
+                    const playerRow = document.createElement('tr');
+
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = playerName;
+                    playerRow.appendChild(nameCell);
+
+                    const positionCell = document.createElement('td');
+                    if (playerData.position) {
+                        positionCell.textContent = `(${Math.floor(playerData.position.x)}, ${Math.floor(playerData.position.z)})`;
+                    } else {
+                        positionCell.textContent = '-';
+                    }
+                    playerRow.appendChild(positionCell);
+
+                    const dimensionCell = document.createElement('td');
+                    // Convert enum name to display name
+                    let dimensionDisplay = '-';
+                    if (playerData.dimension) {
+                        switch (playerData.dimension) {
+                            case 'OVERWORLD':
+                                dimensionDisplay = 'Overworld';
+                                break;
+                            case 'NETHER':
+                                dimensionDisplay = 'Nether';
+                                break;
+                            case 'END':
+                                dimensionDisplay = 'End';
+                                break;
+                            default:
+                                dimensionDisplay = playerData.dimension;
+                        }
+                    }
+                    dimensionCell.textContent = dimensionDisplay;
+                    playerRow.appendChild(dimensionCell);
+
+                    playerTableBody.appendChild(playerRow);
+
+                    // Add stronghold row if exists
+                    if (playerData.bestStrongholdPrediction) {
+                        hasStrongholds = true;
+
+                        const strongholdRow = document.createElement('tr');
+
+                        const measurerCell = document.createElement('td');
+                        measurerCell.textContent = playerName;
+                        strongholdRow.appendChild(measurerCell);
+
+                        const shPositionCell = document.createElement('td');
+                        shPositionCell.textContent = `(${Math.floor(playerData.bestStrongholdPrediction.position.x)}, ${Math.floor(playerData.bestStrongholdPrediction.position.z)})`;
+                        strongholdRow.appendChild(shPositionCell);
+
+                        const percentCell = document.createElement('td');
+                        const certaintyPercent = playerData.bestStrongholdPrediction.certainty * 100;
+                        percentCell.textContent = `${certaintyPercent.toFixed(1)}%`;
+                        // Color based on certainty percentage (red to green)
+                        const hue = (certaintyPercent / 100.0) * 120; // 0 (red) to 120 (green)
+                        percentCell.style.color = `hsl(${hue}, 100%, 50%)`;
+                        strongholdRow.appendChild(percentCell);
+
+                        const distCell = document.createElement('td');
+                        distCell.textContent = Math.floor(playerData.bestStrongholdPrediction.distanceFromLastThrow);
+                        strongholdRow.appendChild(distCell);
+
+                        const netherPositionCell = document.createElement('td');
+                        const netherX = Math.floor(playerData.bestStrongholdPrediction.position.x / 8);
+                        const netherZ = Math.floor(playerData.bestStrongholdPrediction.position.z / 8);
+                        netherPositionCell.textContent = `(${netherX}, ${netherZ})`;
+                        strongholdRow.appendChild(netherPositionCell);
+
+                        const angleCell = document.createElement('td');
+                        const angle = playerData.bestStrongholdPrediction.angleFromLastThrow;
+                        angleCell.textContent = angle.toFixed(1);
+                        // // Color based on angle difference (green for small angles, red for large)
+                        // const angleHue = (1.0 - (angle / 180.0)) * 120; // 120 (green) to 0 (red)
+                        // angleCell.style.color = `hsl(${angleHue}, 100%, 50%)`;
+                        strongholdRow.appendChild(angleCell);
+
+                        strongholdTableBody.appendChild(strongholdRow);
+                    }
+                }
+            }
+
+            // Show/hide tables and no data message
+            document.querySelector('.table-container').style.display = hasPlayers ? 'block' : 'none';
+            strongholdContainer.style.display = hasStrongholds ? 'block' : 'none';
+            noDataMessage.style.display = hasPlayers ? 'none' : 'block';
+        }
+    </script>
+</body>
+
+</html>

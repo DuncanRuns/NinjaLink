@@ -152,6 +152,10 @@ public final class NinjaLinkServer {
 
             String roomName = joinRequest.roomName;
             if (useRooms && !roomName.isEmpty()) {
+                if (joinRequest.isWatcher()) {
+                    rejectConnection(client, "Watchers cannot create rooms!");
+                    return;
+                }
                 Room room = new Room(roomName, joinRequest.roomPass);
                 rooms.add(room);
                 Room.AcceptType acceptType = room.checkAccept(client, joinRequest);

@@ -11,9 +11,13 @@
             font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0px;
             background-color: #2b2b2b;
             color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            /*justify-content: center;*/
         }
 
         .form-group {
@@ -78,12 +82,13 @@
         }
 
         .data-display {
-            margin-top: 20px;
+            margin-top: 0px;
             display: none;
+            flex-shrink: 0;
         }
 
         .table-container {
-            margin-bottom: 30px;
+            margin-bottom: 10px;
         }
 
         table {
@@ -96,14 +101,15 @@
 
         th,
         td {
-            padding: 10px;
+            padding: 5px;
             text-align: center;
             border: none;
         }
 
         th {
             background-color: #4a4a4a;
-            font-weight: bold;
+            color: #ddd;
+            font-weight: normal;
         }
 
         tr:nth-child(even) {

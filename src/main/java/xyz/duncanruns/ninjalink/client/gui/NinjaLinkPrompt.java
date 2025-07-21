@@ -4,6 +4,7 @@ import com.formdev.flatlaf.FlatDarkLaf;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
+import xyz.duncanruns.ninjalink.Constants;
 import xyz.duncanruns.ninjalink.client.NinjaLinkConfig;
 import xyz.duncanruns.ninjalink.data.JoinRequest;
 
@@ -195,6 +196,6 @@ public class NinjaLinkPrompt extends JDialog {
     }
 
     private void createUIComponents() {
-        addressBox = new HintTextField("ws://ninjalink.duncanruns.xyz:52534");
+        addressBox = new HintTextField(Constants.DEFAULT_ADDRESS);
     }
 }

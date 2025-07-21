@@ -35,7 +35,13 @@ A co-op tool to see other player's positions and measured strongholds using Ninj
 
 ## NinjaLink Public Server
 
-As of July 2025, a public NinjaLink server using rooms is available at `ws://ninjalink.duncanruns.xyz:52534`.
+As of July 2025, a public NinjaLink server using rooms is available at `wss://ninjalink.duncanruns.xyz:52536` (or
+`ws://ninjalink.duncanruns.xyz:52534`).
+
+## NinjaLink Watcher Website
+
+A website is available at [ninjalink.duncanruns.xyz](https://ninjalink.duncanruns.xyz) that allows you to connect to a
+NinjaLink server and view player data without needing to download anything.
 
 ## Hosting a NinjaLink server
 

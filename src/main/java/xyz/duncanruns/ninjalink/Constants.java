@@ -34,7 +34,7 @@ public final class Constants {
     /**
      * The default address to connect to.
      */
-    public static final String DEFAULT_ADDRESS = "ws://ninjalink.duncanruns.xyz:52534";
+    public static final String DEFAULT_ADDRESS = "wss://ninjalink.duncanruns.xyz:52536";
 
     private Constants() {
     }
